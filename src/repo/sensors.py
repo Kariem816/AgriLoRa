@@ -1,6 +1,7 @@
 from typing import Any, AsyncGenerator, Callable
+from unittest import result
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import CursorResult, select, delete, update
 from db.schema.sensors import Sensor
 from domain.schemas import SensorCreate, SensorCreated, SensorResponse
 
@@ -47,27 +48,32 @@ class SensorsRepository:
             await gen.aclose()
 
     async def update(self, sensor_id: int, name: str) -> bool:
-        sensor = await self.get_by_id(sensor_id)
-        if not sensor:
-            return False
         gen = self.gen()
         try:
             db = await anext(gen)
-            sensor.name = name
+            result = await db.execute(
+                update(Sensor).where(Sensor.id == sensor_id).values(name=name)
+            )
+            assert isinstance(result, CursorResult)
+            rows = result.rowcount
+            if rows == 0:
+                return False
             await db.commit()
-            await db.refresh(sensor)
             return True
         finally:
             await gen.aclose()
 
     async def delete(self, sensor_id: int) -> bool:
-        sensor = await self.get_by_id(sensor_id)
-        if not sensor:
-            return False
         gen = self.gen()
         try:
             db = await anext(gen)
-            await db.delete(sensor)
+            res = await db.execute(
+                delete(Sensor).where(Sensor.id ==
+                                     sensor_id).returning(Sensor.id)
+            )
+            deleted_id = res.scalar_one_or_none()
+            if not deleted_id:
+                return False
             await db.commit()
             return True
         finally:

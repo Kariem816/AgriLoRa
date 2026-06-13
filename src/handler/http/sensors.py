@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from service.sensors import SensorsService
-from domain.schemas import SensorCreate, SensorUpdate, SensorResponse
+from domain.schemas import SensorCreate, SensorCreated, SensorUpdate, SensorResponse
 
 
 class SensorHandler:
@@ -11,7 +11,7 @@ class SensorHandler:
         self._register_routes()
 
     def _register_routes(self):
-        @self.router.post("/", response_model=SensorResponse)
+        @self.router.post("/", response_model=SensorCreated)
         async def create_sensor(sensor: SensorCreate):
             return await self.service.create_sensor(sensor)
 
@@ -26,12 +26,12 @@ class SensorHandler:
         async def get_all_sensors():
             return await self.service.get_all_sensors()
 
-        @self.router.put("/{sensor_id}", response_model=SensorResponse)
+        @self.router.put("/{sensor_id}")
         async def update_sensor(sensor_id: int, sensor: SensorUpdate):
             result = await self.service.update_sensor(sensor_id, sensor)
             if not result:
                 raise HTTPException(status_code=404, detail="Sensor not found")
-            return result
+            return {"message": "Sensor updated"}
 
         @self.router.delete("/{sensor_id}")
         async def delete_sensor(sensor_id: int):

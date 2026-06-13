@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from service.sensor_data import SensorDataService
-from domain.schemas import SensorDataCreate, SensorDataResponse
+from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
 
 
 class SensorDataHandler:
@@ -11,7 +11,7 @@ class SensorDataHandler:
         self._register_routes()
 
     def _register_routes(self):
-        @self.router.post("/", response_model=SensorDataResponse)
+        @self.router.post("/", response_model=SensorDataCreated)
         async def add_sensor_data(data: SensorDataCreate):
             return await self.service.add_sensor_data(data)
 
