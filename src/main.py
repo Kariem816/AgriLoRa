@@ -22,9 +22,13 @@ from handler.http import HttpHandler
 from handler.uart import UartHandler
 
 
+_win_ctrl_handler_ref = None  # Module-level keep-alive
+
+
 def register_signal_handler(loop: asyncio.AbstractEventLoop, shutdown: Callable[[], None]) -> None:
     if sys.platform == "win32":
-        # Register Windows console control handler
+        global _win_ctrl_handler_ref
+
         def win_ctrl_handler(dw_ctrl_type):
             if dw_ctrl_type in (0, 2):  # CTRL_C_EVENT or CTRL_CLOSE_EVENT
                 loop.call_soon_threadsafe(shutdown)
@@ -34,9 +38,8 @@ def register_signal_handler(loop: asyncio.AbstractEventLoop, shutdown: Callable[
         WINFUNCTYPE = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)
         handler_ptr = WINFUNCTYPE(win_ctrl_handler)
         ctypes.windll.kernel32.SetConsoleCtrlHandler(handler_ptr, True)
-        _ref = handler_ptr  # Keep reference to prevent GC
+        _win_ctrl_handler_ref = handler_ptr  # Survives function return
     else:
-        # Register Unix signal handlers
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, shutdown)
 
@@ -62,17 +65,20 @@ async def main():
     handler_type = os.getenv("HANDLER_TYPE", "http").lower()
     print(f"Starting IoT server with handler type: {handler_type}")
     tasks = []
+    handlers: list[Handler] = []
     if handler_type in ("http", "both"):
+        handlers.append(http_handler)
         tasks.append(http_handler.start())
     if handler_type in ("uart", "both"):
+        handlers.append(uart_handler)
         tasks.append(uart_handler.start())
 
     loop = asyncio.get_running_loop()
 
     def shutdown():
         print("\nShutting down IoT handlers...")
-        for task in tasks:
-            task.stop()
+        for handler in handlers:
+            handler.stop()
 
     register_signal_handler(loop, shutdown)
 
