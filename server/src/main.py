@@ -6,20 +6,20 @@ import ctypes
 from typing import Callable
 
 # Database
-from db.db import get_db, engine, Base
+from server.src.db.db import get_db, engine, Base
 
 # Repositories
-from repo.sensors import SensorsRepository
-from repo.sensor_data import SensorDataRepository
+from server.src.repo.sensors import SensorsRepository
+from server.src.repo.sensor_data import SensorDataRepository
 
 # Services
-from service.sensors import SensorsService
-from service.sensor_data import SensorDataService
+from server.src.service.sensors import SensorsService
+from server.src.service.sensor_data import SensorDataService
 
 # Handlers
-from handler import Handler
-from handler.http import HttpHandler
-from handler.uart import UartHandler
+from server.src.handler import Handler
+from server.src.handler.http import HttpHandler
+from server.src.handler.uart import UartHandler
 
 
 _win_ctrl_handler_ref = None  # Module-level keep-alive
