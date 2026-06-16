@@ -8,22 +8,21 @@ int main()
 
     UiCamera camera;
 
-
-    raylib::Model plot("assets/obj/plot.obj");
+    raylib::Model plot("assets/obj/plot.glb");
     if (!plot.IsValid())
     {
         TraceLog(LOG_ERROR, "Failed to load model");
         return -1;
     }
 
-    SetTargetFPS(60);  
+    SetTargetFPS(60);
 
     while (!window.ShouldClose())
     {
         camera.Update();
 
         BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(SKYBLUE);
 
         camera.BeginMode();
         DrawModel(plot, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
