@@ -6,16 +6,16 @@ Hud::Hud(const raylib::Vector2 &position, const raylib::Vector2 &size) : UiEleme
 {
     btn2D_ = new Btn();
     btn2D_->SetLabel("2D");
-    btn2D_->SetColor(raylib::Color{0xFF007ACC});
-    btn2D_->SetFrame(true);
-    btn2D_->SubscribeOnClick([this](raylib::Vector2 _)
+    btn2D_->SetBackground(raylib::Color{0xFF007ACC});
+    btn2D_->SetFrameThickness(2.0f);
+    btn2D_->SubscribeOnClick([this](raylib::Vector2)
                              { TriggerOnMode2D(); });
 
     btn3D_ = new Btn();
     btn3D_->SetLabel("3D");
-    btn3D_->SetColor(raylib::Color{0xFF007ACC});
-    btn3D_->SetFrame(true);
-    btn3D_->SubscribeOnClick([this](raylib::Vector2 _)
+    btn3D_->SetBackground(raylib::Color{0xFF007ACC});
+    btn3D_->SetFrameThickness(2.0f);
+    btn3D_->SubscribeOnClick([this](raylib::Vector2)
                              { TriggerOnMode3D(); });
 
     AddChild("btn2D", btn2D_);

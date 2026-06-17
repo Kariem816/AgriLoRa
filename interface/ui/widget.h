@@ -9,10 +9,10 @@ class Widget : public virtual UiElement
 {
 public:
     void Update(float dt) override;
-    void Draw() override;
-    void AddChild(const std::string &name, UiElement *child);
-    UiElement *GetChild(const std::string &name) const;
+    virtual void Draw() override;
+    void AddChild(const std::string &name, UiBase *child);
+    UiBase *GetChild(const std::string &name) const;
 
 private:
-    std::map<std::string, UiElement *> children_;
+    std::map<std::string, UiBase *> children_;
 };

@@ -4,8 +4,6 @@ UiElement::UiElement(const raylib::Vector2 &position, const raylib::Vector2 &siz
     : position_(position), size_(size) {}
 UiElement::UiElement(const raylib::Rectangle &rect)
     : position_(rect.x, rect.y), size_(rect.width, rect.height) {}
-UiElement::UiElement(const raylib::Vector2 &position, const raylib::Vector2 &size, const raylib::Color &color, bool hasFrame)
-    : position_(position), size_(size), color_(color), hasFrame_(hasFrame) {}
 
 UiElement::~UiElement()
 {

@@ -10,18 +10,21 @@ void Widget::Update(float dt)
 
 void Widget::Draw()
 {
+    auto rect = GetRect();
+    BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
     for (const auto &child : children_)
     {
         child.second->Draw();
     }
+    EndScissorMode();
 }
 
-void Widget::AddChild(const std::string &name, UiElement *child)
+void Widget::AddChild(const std::string &name, UiBase *child)
 {
     children_[name] = child;
 }
 
-UiElement *Widget::GetChild(const std::string &name) const
+UiBase *Widget::GetChild(const std::string &name) const
 {
     auto it = children_.find(name);
     if (it != children_.end())
