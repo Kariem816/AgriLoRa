@@ -19,9 +19,11 @@ public:
     GETTERSETTER(std::string, Label, label_)
     GETTERSETTER(raylib::Color, LabelColor, labelColor_)
     GETTERSETTER(float, FontSize, fontSize_)
+    GETTERSETTER(float, FontSpacing, fontSpacing_)
 
 private:
     std::string label_;
     raylib::Color labelColor_ = BLACK;
     float fontSize_ = 20;
+    float fontSpacing_ = 2.0f;
 };

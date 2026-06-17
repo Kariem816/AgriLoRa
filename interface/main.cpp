@@ -1,18 +1,24 @@
 #include <raylib-cpp/raylib-cpp.hpp>
 
+#include <iostream>
+
 #include <camera.h>
 #include <ui/hud.h>
 
 int main()
 {
     raylib::Window window(800, 600, "AgriLoRa UI");
-    window.SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    window.SetState(FLAG_WINDOW_RESIZABLE);
 
     UiCamera camera;
     auto screenSize = window.GetSize();
     Hud hud;
     hud.SetPosition(raylib::Vector2::Zero());
-    hud.SetSize(screenSize * raylib::Vector2{1, 0.1f});
+    hud.SetSize(screenSize * raylib::Vector2{0.25f, 0.05f});
+    hud.SubscribeOnMode2D([]()
+                          { std::cout << "Switched to 2D mode" << std::endl; });
+    hud.SubscribeOnMode3D([]()
+                          { std::cout << "Switched to 3D mode" << std::endl; });
 
     raylib::Model plot("assets/obj/plot.glb");
     if (!plot.IsValid())
@@ -43,5 +49,17 @@ int main()
 
         EndDrawing();
     }
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+    auto size = window.GetSize();
+    auto quitting = raylib::Text("Exiting...");
+    quitting.SetFontSize(std::min(size.y, size.x) / 4);
+    quitting.SetColor(WHITE);
+    quitting.SetSpacing(quitting.GetFontSize() / 10);
+    auto textSize = quitting.MeasureEx();
+    quitting.Draw({(size.x - textSize.x) / 2, (size.y - textSize.y) / 2});
+    EndDrawing();
+
     return 0;
 }

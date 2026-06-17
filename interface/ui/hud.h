@@ -13,13 +13,16 @@ public:
     void SetPosition(raylib::Vector2 position) override;
     void SetSize(raylib::Vector2 size) override;
 
+    EVENTSOURCEV(mode2DEv, OnMode2D)
+    EVENTSOURCEV(mode3DEv, OnMode3D)
+
 private:
-    void on2DMode();
-    void on3DMode();
     void updateLayout();
 
 public:
-    static constexpr float padding_ = 10.0f;
-    Btn* btn2D_;
-    Btn* btn3D_;
+    static constexpr float padding_ = 0.01f;
+
+private:
+    Btn *btn2D_;
+    Btn *btn3D_;
 };

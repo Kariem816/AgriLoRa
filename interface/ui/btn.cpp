@@ -15,7 +15,8 @@ void Btn::Draw()
     if (!label_.empty())
     {
         raylib::Text text(label_, fontSize_, BLACK);
-        raylib::Vector2 textSize = text.Measure();
+        text.SetSpacing(fontSpacing_);
+        raylib::Vector2 textSize = text.MeasureEx();
         auto pos = GetPosition();
         auto size = GetSize();
         raylib::Vector2 textPos = {pos.x + (size.x - textSize.x) / 2, pos.y + (size.y - textSize.y) / 2};
