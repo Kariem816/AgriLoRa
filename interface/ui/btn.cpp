@@ -2,24 +2,29 @@
 
 #include <raylib-cpp/raylib-cpp.hpp>
 
+void Btn::Update(float dt)
+{
+    Clickable::Update(dt);
+    Label::Update(dt);
+}
+
 void Btn::Draw()
 {
-    UiElement::Draw();
+    if (GetFrame())
+    {
+        DrawRectangleV(GetPosition() + raylib::Vector2{1, 1}, GetSize() - raylib::Vector2{2, 2}, GetColor());
+        DrawRectangleLinesEx(GetRect(), 1, GetFrameColor());
+    }
+    else
+    {
+        DrawRectangleV(GetPosition(), GetSize(), GetColor());
+    }
+
+    Label::Draw();
     if (IsMouseOver())
     {
         raylib::Color overlay{GetColor()};
         overlay.a = 100;
         DrawRectangleRec(GetRect(), overlay);
-    }
-
-    if (!label_.empty())
-    {
-        raylib::Text text(label_, fontSize_, BLACK);
-        text.SetSpacing(fontSpacing_);
-        raylib::Vector2 textSize = text.MeasureEx();
-        auto pos = GetPosition();
-        auto size = GetSize();
-        raylib::Vector2 textPos = {pos.x + (size.x - textSize.x) / 2, pos.y + (size.y - textSize.y) / 2};
-        text.Draw(textPos);
     }
 }

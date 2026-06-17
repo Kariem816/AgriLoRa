@@ -3,7 +3,8 @@
 #include <iostream>
 
 #include <camera.h>
-#include <ui/hud.h>
+#include <ui/window.h>
+#include <widgets/hud.h>
 
 int main()
 {
@@ -20,6 +21,8 @@ int main()
     hud.SubscribeOnMode3D([]()
                           { std::cout << "Switched to 3D mode" << std::endl; });
 
+    Window::Instance().AddWidget(&hud);
+
     raylib::Model plot("assets/obj/plot.glb");
     if (!plot.IsValid())
     {
@@ -33,7 +36,7 @@ int main()
     {
         float dt = GetFrameTime();
         camera.Update();
-        hud.Update(dt);
+        Window::Instance().Update(dt);
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
@@ -45,7 +48,7 @@ int main()
         DrawLine3D({0, 0, 10}, {0, 0, -10}, BLUE);
         camera.EndMode();
 
-        hud.Draw();
+        Window::Instance().Draw();
 
         EndDrawing();
     }

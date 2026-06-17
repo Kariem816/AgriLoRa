@@ -4,13 +4,15 @@ Hud::Hud() : Hud({0, 0}, {0, 0}) {}
 
 Hud::Hud(const raylib::Vector2 &position, const raylib::Vector2 &size) : UiElement(position, size)
 {
-    btn2D_ = new Btn("2D");
+    btn2D_ = new Btn();
+    btn2D_->SetLabel("2D");
     btn2D_->SetColor(raylib::Color{0xFF007ACC});
     btn2D_->SetFrame(true);
     btn2D_->SubscribeOnClick([this](raylib::Vector2 _)
                              { TriggerOnMode2D(); });
 
-    btn3D_ = new Btn("3D");
+    btn3D_ = new Btn();
+    btn3D_->SetLabel("3D");
     btn3D_->SetColor(raylib::Color{0xFF007ACC});
     btn3D_->SetFrame(true);
     btn3D_->SubscribeOnClick([this](raylib::Vector2 _)

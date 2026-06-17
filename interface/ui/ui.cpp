@@ -10,53 +10,14 @@ UiElement::UiElement(const raylib::Vector2 &position, const raylib::Vector2 &siz
 UiElement::~UiElement()
 {
     TriggerOnDestroy();
-    for (auto &child : children_)
-    {
-        delete child.second;
-    }
 }
 
-void UiElement::Update(float dt)
+raylib::Rectangle UiElement::GetRect() const
 {
-    raylib::Vector2 mousePos = GetMousePosition();
-    bool isOver = CheckCollisionPointRec(mousePos, GetRect());
-
-    if (isOver && !isMouseOver_)
-    {
-        isMouseOver_ = true;
-        TriggerOnEnter();
-    }
-    else if (!isOver && isMouseOver_)
-    {
-        isMouseOver_ = false;
-        TriggerOnLeave();
-    }
-
-    if (isOver && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-    {
-        TriggerOnClick(mousePos);
-    }
-
-    for (auto &[id, child] : children_)
-    {
-        child->Update(dt);
-    }
+    return {position_, size_};
 }
 
-void UiElement::Draw()
+raylib::Vector2 UiElement::GetCenter() const
 {
-    if (hasFrame_)
-    {
-        DrawRectangleV(position_ + raylib::Vector2{1, 1}, size_ - raylib::Vector2{2, 2}, color_);
-        DrawRectangleLinesEx(GetRect(), 1, frameColor_);
-    }
-    else
-    {
-        DrawRectangleV(position_, size_, color_);
-    }
-
-    for (const auto &[id, child] : children_)
-    {
-        child->Draw();
-    }
+    return {position_.x + size_.x / 2, position_.y + size_.y / 2};
 }

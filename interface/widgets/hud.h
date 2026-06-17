@@ -1,9 +1,9 @@
 #pragma once
 
-#include <ui/ui.h>
+#include <ui/widget.h>
 #include <ui/btn.h>
 
-class Hud : public UiElement
+class Hud : public Widget
 {
 public:
     Hud();
