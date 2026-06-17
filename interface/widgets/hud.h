@@ -2,6 +2,7 @@
 
 #include <ui/widget.h>
 #include <ui/btn.h>
+#include <ui/checkbox.h>
 
 class Hud : public Widget
 {
@@ -16,13 +17,20 @@ public:
     EVENTSOURCEV(mode2DEv, OnMode2D)
     EVENTSOURCEV(mode3DEv, OnMode3D)
 
+    bool GetDebug() const;
+    void SetDebug(bool value);
+
+    uint64_t SubscribeOnDebugToggle(const EventSource<bool>::Cb &callback);
+    void UnsubscribeOnDebugToggle(uint64_t id);
+
 private:
     void updateLayout();
 
 public:
-    static constexpr float padding_ = 0.01f;
+    static constexpr float gap_ = 0.01f;
 
 private:
     Btn *btn2D_;
     Btn *btn3D_;
+    Checkbox *chkDebug_;
 };

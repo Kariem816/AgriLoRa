@@ -9,7 +9,7 @@
 class UiElement : public UiBase
 {
 public:
-    UiElement() = default;
+    UiElement();
     UiElement(const raylib::Vector2 &position, const raylib::Vector2 &size);
     UiElement(const raylib::Rectangle &rect);
     ~UiElement();

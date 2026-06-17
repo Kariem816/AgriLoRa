@@ -1,7 +1,7 @@
 .PHONY: all build
 
 INCLUDE_DIRS := -I. -Ivendor/include
-FLAGS := -std=c++20 -Wall -Wextra -Wpedantic
+FLAGS := -std=c++20 -Wall -Wextra -Wpedantic # -ggdb
 
 all: build/interface.exe
 
@@ -16,7 +16,9 @@ UI_SOURCES := $(wildcard ui/*.cpp)
 UI_OBJECTS := $(patsubst ui/%.cpp, build/ui/%.o, $(UI_SOURCES))
 
 build/ui/%.o: ui/%.cpp | build/ui
-	g++ $(FLAGS) -c $< -o $@ $(INCLUDE_DIRS)
+	g++ $(FLAGS) -MMD -MP -c $< -o $@ $(INCLUDE_DIRS)
+
+-include $(wildcard build/ui/*.d)
 
 build/libs/libui.a: $(UI_OBJECTS) | build/libs
 	ar rcs $@ $^
@@ -26,7 +28,9 @@ WIDGET_SOURCES := $(wildcard widgets/*.cpp)
 WIDGET_OBJECTS := $(patsubst widgets/%.cpp, build/widgets/%.o, $(WIDGET_SOURCES))
 
 build/widgets/%.o: widgets/%.cpp | build/widgets
-	g++ $(FLAGS) -c $< -o $@ $(INCLUDE_DIRS)
+	g++ $(FLAGS) -MMD -MP -c $< -o $@ $(INCLUDE_DIRS)
+
+-include $(wildcard build/widgets/*.d)
 
 build/libs/libwidgets.a: $(WIDGET_OBJECTS) | build/libs
 	ar rcs $@ $^

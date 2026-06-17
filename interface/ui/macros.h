@@ -1,8 +1,16 @@
 #pragma once
 
+#define VGETTER(type, method, name)                                                        \
+    /** Retrieves the name value for the object. @return The name value of the object. */      \
+    const type&                                                                                       \
+    Get##method() const                                                                        \
+    {                                                                                          \
+        return name;                                                                           \
+    }
+
 #define VGETTERSETTER(type, method, name)                                                      \
     /** Retrieves the name value for the object. @return The name value of the object. */      \
-    type                                                                                       \
+    const type&                                                                                       \
     Get##method() const                                                                        \
     {                                                                                          \
         return name;                                                                           \

@@ -12,6 +12,7 @@ public:
     virtual void Draw() override;
     void AddChild(const std::string &name, UiBase *child);
     UiBase *GetChild(const std::string &name) const;
+    size_t ChildrenCount() const;
 
 private:
     std::map<std::string, UiBase *> children_;

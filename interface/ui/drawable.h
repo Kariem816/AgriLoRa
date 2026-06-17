@@ -7,6 +7,8 @@ class Drawable : public virtual UiElement
 public:
     virtual void Draw() override;
     
+    raylib::Rectangle GetInnerRect() const;
+
     VGETTERSETTER(raylib::Color, Background, bg_)
     VGETTERSETTER(raylib::Color, FrameColor, frameColor_)
     VGETTERSETTER(float, FrameThickness, frameThickness_)

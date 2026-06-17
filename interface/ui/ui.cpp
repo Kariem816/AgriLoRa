@@ -1,5 +1,6 @@
 #include "ui.h"
 
+UiElement::UiElement() : position_(0, 0), size_(0, 0) {}
 UiElement::UiElement(const raylib::Vector2 &position, const raylib::Vector2 &size)
     : position_(position), size_(size) {}
 UiElement::UiElement(const raylib::Rectangle &rect)

@@ -20,6 +20,10 @@ int main()
                           { std::cout << "Switched to 2D mode" << std::endl; });
     hud.SubscribeOnMode3D([]()
                           { std::cout << "Switched to 3D mode" << std::endl; });
+    bool debugMode = false;
+    hud.SetDebug(debugMode);
+    hud.SubscribeOnDebugToggle([&](bool isChecked)
+                               { debugMode = isChecked; });
 
     Window::Instance().AddWidget(&hud);
 
@@ -43,9 +47,13 @@ int main()
 
         camera.BeginMode();
         DrawModel(plot, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
-        DrawLine3D({10, 0, 0}, {-10, 0, 0}, RED);
-        DrawLine3D({0, 10, 0}, {0, -10, 0}, GREEN);
-        DrawLine3D({0, 0, 10}, {0, 0, -10}, BLUE);
+        if (debugMode)
+        {
+            DrawLine3D({10, 0, 0}, {-10, 0, 0}, RED);
+            DrawLine3D({0, 10, 0}, {0, -10, 0}, GREEN);
+            DrawLine3D({0, 0, 10}, {0, 0, -10}, BLUE);
+            DrawGrid(30, 1.0f);
+        }
         camera.EndMode();
 
         Window::Instance().Draw();
@@ -54,7 +62,7 @@ int main()
     }
 
     BeginDrawing();
-    ClearBackground(BLACK);
+    ClearBackground(SKYBLUE);
     auto size = window.GetSize();
     auto quitting = raylib::Text("Exiting...");
     quitting.SetFontSize(std::min(size.y, size.x) / 4);

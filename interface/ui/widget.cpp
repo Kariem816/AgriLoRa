@@ -33,3 +33,8 @@ UiBase *Widget::GetChild(const std::string &name) const
     }
     return nullptr;
 }
+
+size_t Widget::ChildrenCount() const
+{
+    return children_.size();
+}

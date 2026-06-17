@@ -2,6 +2,7 @@
 
 void Clickable::Update(float dt)
 {
+    isClicked_ = false;
     Hoverable::Update(dt);
     if (IsMouseOver() && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
