@@ -36,6 +36,9 @@ int main()
         TraceLog(LOG_ERROR, "Failed to load model");
         return -1;
     }
+    Animatable<float> waterLevel = 0.2f;
+    waterLevel.setLoop(LoopMode::Reverse);
+    waterLevel.to(0.3f, 2.0f, Easing::EaseInOutSine);
 
     SetTargetFPS(60);
 
@@ -83,12 +86,14 @@ int main()
 
         Window::Instance().Update(dt);
         camera.Update(dt);
+        waterLevel.update(dt);
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
         camera.BeginMode();
         DrawModel(plot, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+        DrawPlane({0.0f, waterLevel, 0.0f}, {23.0f, 5.0f}, BLUE);
         if (debugMode)
         {
             DrawLine3D({10, 0, 0}, {-10, 0, 0}, RED);
