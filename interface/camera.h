@@ -31,16 +31,21 @@ private:
     void updateAnimations(float dt);
     void updateCameraFromSpherical();
     bool isAnimating() const;
-    void blockInteraction(bool block);
 
 private:
     raylib::Camera3D camera;
-    raylib::Vector3 cameraTarget{0.0f, 0.0f, 0.0f};
-    Animatable<float> yaw = 45.0f;     // horizontal angle (degrees)
-    Animatable<float> pitch = 35.0f;   // vertical angle (degrees)
-    Animatable<float> radius = 17.32f; // distance from target (≈ length of {10,10,10})
-    bool mode2D = false;
-    bool interactionBlocked = false; // Whether user interaction is currently blocked (e.g., during animation)
 
+    // Spherical coordinates for the camera position
+    static constexpr float defaultYaw = 45.0f;     // horizontal angle (degrees)
+    Animatable<float> yaw = defaultYaw;
+    static constexpr float defaultPitch = 35.0f;   // vertical angle (degrees)
+    Animatable<float> pitch = defaultPitch;
+    static constexpr float defaultRadius = 17.32f; // distance from target (≈ length of {10,10,10})
+    Animatable<float> radius = defaultRadius;
+    
+    // state
+    bool mode2D = false;
+    
     Animatable<raylib::Vector3> upVector; // Up vector for the camera
+    Animatable<raylib::Vector3> target; // Camera target point (the point the camera looks at)
 };

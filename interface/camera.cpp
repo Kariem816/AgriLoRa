@@ -6,8 +6,9 @@
 UiCamera::UiCamera()
 {
     upVector = {0.0f, 1.0f, 0.0f};
-    camera.SetTarget({0.0f, 0.0f, 0.0f});
-    camera.SetUp({0.0f, 1.0f, 0.0f});
+    target = {0.0f, 0.0f, 0.0f};
+    camera.SetTarget(target);
+    camera.SetUp(upVector);
     camera.SetFovy(45.0f);
     camera.SetProjection(CAMERA_PERSPECTIVE);
     updateCameraFromSpherical();
@@ -17,8 +18,6 @@ UiCamera::~UiCamera() = default;
 void UiCamera::Update(float dt)
 {
     updateAnimations(dt);
-    blockInteraction(isAnimating());
-
     updateCameraFromSpherical();
 }
 
@@ -33,7 +32,7 @@ void UiCamera::EndMode()
 
 void UiCamera::Orbit(float dx, float dy)
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
     yaw += dx * MOUSE_SENSITIVITY;
@@ -44,7 +43,7 @@ void UiCamera::Orbit(float dx, float dy)
 
 void UiCamera::Zoom(float amount)
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
     radius -= amount * radius * 0.1f;
@@ -53,7 +52,7 @@ void UiCamera::Zoom(float amount)
 
 void UiCamera::Pan(float dx, float dy)
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
     auto forward =
@@ -66,22 +65,19 @@ void UiCamera::Pan(float dx, float dy)
         right * (-dx * MOUSE_SENSITIVITY) +
         up * (dy * MOUSE_SENSITIVITY);
 
-    cameraTarget += pan;
-    camera.SetTarget(cameraTarget);
+    target += pan;
 }
 
 void UiCamera::ResetView()
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
-    yaw.to(45.0f, 0.2f, Easing::EaseOutSine);
-    pitch.to(35.0f, 0.2f, Easing::EaseOutSine);
-    radius.to(17.32f, 0.2f, Easing::EaseOutSine);
+    yaw.to(defaultYaw, 0.5f, Easing::EaseOutSine);
+    pitch.to(defaultPitch, 0.5f, Easing::EaseOutSine);
+    radius.to(defaultRadius, 0.5f, Easing::EaseOutSine);
 
-    cameraTarget = raylib::Vector3{0.0f, 0.0f, 0.0f};
-    camera.SetTarget(cameraTarget);
-
+    target.to({0.0f, 0.0f, 0.0f}, 0.5f, Easing::EaseOutSine);
     upVector.to({0.0f, 1.0f, 0.0f}, 0.5f, Easing::EaseOutSine);
 
     mode2D = false;
@@ -89,7 +85,7 @@ void UiCamera::ResetView()
 
 void UiCamera::SetTopView()
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
     pitch.to(89.9f, 0.5f, Easing::EaseOutSine);
@@ -100,11 +96,11 @@ void UiCamera::SetTopView()
 
 void UiCamera::SetPerspectiveView()
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
-    pitch.to(35.0f, 0.5f, Easing::EaseOutSine);
-    yaw.to(45.0f, 0.5f, Easing::EaseOutSine);
+    pitch.to(defaultPitch, 0.5f, Easing::EaseOutSine);
+    yaw.to(defaultYaw, 0.5f, Easing::EaseOutSine);
     upVector.to({0.0f, 1.0f, 0.0f}, 0.5f, Easing::EaseOutSine);
 
     mode2D = false;
@@ -112,25 +108,25 @@ void UiCamera::SetPerspectiveView()
 
 void UiCamera::SetAxisView(AxisView axis)
 {
-    if (interactionBlocked)
+    if (isAnimating())
         return;
 
     if (axis == AxisView::X)
     {
         yaw.to(0.0f, 0.5f, Easing::EaseOutSine);
-        pitch.to(mode2D ? 0.0f : 35.0f, 0.5f, Easing::EaseOutSine);
+        pitch.to(mode2D ? 0.0f : defaultPitch, 0.5f, Easing::EaseOutSine);
         upVector.to({0.0f, 1.0f, 0.0f}, 0.5f, Easing::EaseOutSine);
     }
     else if (axis == AxisView::Y)
     {
         yaw.to(90.0f, 0.5f, Easing::EaseOutSine);
-        pitch.to(mode2D ? 89.9f : 35.0f, 0.5f, Easing::EaseOutSine);
+        pitch.to(mode2D ? 89.9f : defaultPitch, 0.5f, Easing::EaseOutSine);
         upVector.to({0.0f, 0.0f, -1.0f}, 0.5f, Easing::EaseOutSine);
     }
     else if (axis == AxisView::Z)
     {
         yaw.to(-90.0f, 0.5f, Easing::EaseOutSine);
-        pitch.to(mode2D ? 0.0f : 35.0f, 0.5f, Easing::EaseOutSine);
+        pitch.to(mode2D ? 0.0f : defaultPitch, 0.5f, Easing::EaseOutSine);
         upVector.to({0.0f, 1.0f, 0.0f}, 0.5f, Easing::EaseOutSine);
     }
 }
@@ -141,24 +137,23 @@ void UiCamera::updateAnimations(float dt)
     pitch.update(dt);
     radius.update(dt);
     upVector.update(dt);
+    target.update(dt);
 }
 
 bool UiCamera::isAnimating() const
 {
-    return yaw.isAnimating() || pitch.isAnimating() || radius.isAnimating() || upVector.isAnimating();
-}
-
-void UiCamera::blockInteraction(bool block)
-{
-    interactionBlocked = block;
+    return yaw.isAnimating() || pitch.isAnimating() || radius.isAnimating() || upVector.isAnimating() || target.isAnimating();
 }
 
 void UiCamera::updateCameraFromSpherical()
 {
     float p = pitch * DEG2RAD;
     float y = yaw * DEG2RAD;
-    camera.SetPosition({cameraTarget.x + radius * cosf(p) * cosf(y),
-                        cameraTarget.y + radius * sinf(p),
-                        cameraTarget.z + radius * cosf(p) * sinf(y)});
+    raylib::Vector3 target = this->target;
+
+    camera.SetPosition({target.x + radius * cosf(p) * cosf(y),
+                        target.y + radius * sinf(p),
+                        target.z + radius * cosf(p) * sinf(y)});
+    camera.SetTarget(target);
     camera.SetUp(upVector);
 }
