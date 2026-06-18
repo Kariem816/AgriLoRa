@@ -12,15 +12,17 @@ int main()
     window.SetState(FLAG_WINDOW_RESIZABLE);
 
     UiCamera camera;
-    
+
     auto screenSize = window.GetSize();
     Hud hud;
     hud.SetPosition(raylib::Vector2::Zero());
     hud.SetSize(screenSize * raylib::Vector2{0.25f, 0.05f});
-    hud.SubscribeOnMode2D([]()
-                          { std::cout << "Switched to 2D mode" << std::endl; });
-    hud.SubscribeOnMode3D([]()
-                          { std::cout << "Switched to 3D mode" << std::endl; });
+
+    hud.SubscribeOnMode2D([&]()
+                          { camera.SetTopView(); });
+    hud.SubscribeOnMode3D([&]()
+                          { camera.SetPerspectiveView(); });
+
     bool debugMode = false;
     hud.SetDebug(debugMode);
     hud.SubscribeOnDebugToggle([&](bool isChecked)
@@ -40,8 +42,47 @@ int main()
     while (!window.ShouldClose())
     {
         float dt = GetFrameTime();
-        camera.Update();
+
+        if (IsWindowResized())
+        {
+            auto newSize = window.GetSize();
+            hud.SetSize(newSize * raylib::Vector2{0.25f, 0.05f});
+        }
+
+        // camera controls
+        if (IsKeyPressed(KEY_R))
+        {
+            camera.ResetView();
+        }
+        else if (IsKeyPressed(KEY_X))
+        {
+            camera.SetAxisView(AxisView::X);
+        }
+        else if (IsKeyPressed(KEY_Y))
+        {
+            camera.SetAxisView(AxisView::Y);
+        }
+        else if (IsKeyPressed(KEY_Z))
+        {
+            camera.SetAxisView(AxisView::Z);
+        }
+
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        {
+            auto mouseDelta = GetMouseDelta();
+            camera.Orbit(mouseDelta.x, mouseDelta.y);
+        }
+        else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+        {
+            auto mouseDelta = GetMouseDelta();
+            camera.Pan(-mouseDelta.x, mouseDelta.y);
+        }
+
+        auto mouseWheel = GetMouseWheelMoveV();
+        camera.Zoom(mouseWheel.y);
+
         Window::Instance().Update(dt);
+        camera.Update(dt);
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
