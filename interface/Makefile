@@ -1,7 +1,9 @@
 .PHONY: all build
 
 INCLUDE_DIRS := -I. -Ivendor/include
-FLAGS := -std=c++20 -Wall -Wextra -Wpedantic # -ggdb
+FLAGS := -std=c++20 -Wall -Wextra -Wpedantic
+# FLAGS += -ggdb
+# FLAGS += -O3
 
 all: build/interface.exe
 
