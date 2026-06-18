@@ -8,6 +8,7 @@ public:
     Label(const std::string &label = "");
     Label(const raylib::Vector2 &position, const raylib::Vector2 &size, const std::string &label = "");
     Label(const raylib::Rectangle &rect, const std::string &label = "");
+    virtual ~Label() = default;
 
     VGETTERSETTER(std::string, Label, label_)
     VGETTERSETTER(raylib::Color, LabelColor, labelColor_)

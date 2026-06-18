@@ -9,6 +9,7 @@ public:
     Clickable() = default;
     Clickable(const raylib::Vector2 &position, const raylib::Vector2 &size)
         : UiElement(position, size) {}
+    ~Clickable() = default;
 
     void Update(float dt) override;
     bool IsClicked() const;

@@ -49,11 +49,11 @@ void Checkbox::Draw()
     if (checked_)
     {
         // draw check mark
-        auto origin = raylib::Vector2{checkboxRect_.x + checkboxRect_.width * 0.5, checkboxRect_.y + checkboxRect_.height * (1 - checkboxPadding_)};
+        auto origin = raylib::Vector2{checkboxRect_.x + checkboxRect_.width * 0.5f, checkboxRect_.y + checkboxRect_.height * (1 - checkboxPadding_)};
         auto thickness = std::min(checkboxRect_.width, checkboxRect_.height) * 0.1f;
 
         // short line from mid-left to origin
-        auto midLeft = raylib::Vector2{checkboxRect_.x + checkboxRect_.width * checkboxPadding_, checkboxRect_.y + checkboxRect_.height * 0.5};
+        auto midLeft = raylib::Vector2{checkboxRect_.x + checkboxRect_.width * checkboxPadding_, checkboxRect_.y + checkboxRect_.height * 0.5f};
         DrawLineEx(midLeft, origin, thickness, checkColor_);
 
         // long line from top-right to origin

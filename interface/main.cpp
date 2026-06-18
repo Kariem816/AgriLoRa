@@ -8,10 +8,11 @@
 
 int main()
 {
-    raylib::Window window(800, 600, "AgriLoRa UI");
+    raylib::Window window(800, 600, "AgriLoRa");
     window.SetState(FLAG_WINDOW_RESIZABLE);
 
     UiCamera camera;
+    
     auto screenSize = window.GetSize();
     Hud hud;
     hud.SetPosition(raylib::Vector2::Zero());

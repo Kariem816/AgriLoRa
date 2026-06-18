@@ -5,6 +5,8 @@
 class Drawable : public virtual UiElement
 {    
 public:
+    virtual ~Drawable() = default;
+
     virtual void Draw() override;
     
     raylib::Rectangle GetInnerRect() const;

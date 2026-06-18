@@ -1,6 +1,6 @@
 #include "hoverable.h"
 
-void Hoverable::Update(float dt)
+void Hoverable::Update(float)
 {
     raylib::Vector2 mousePos = GetMousePosition();
     bool isOver = CheckCollisionPointRec(mousePos, GetRect());

@@ -19,9 +19,9 @@ template <typename T>
 class Animatable
 {
 public:
-    Animatable<T>();
-    Animatable<T>(T val);
-    Animatable<T>(const Animatable<T>&) = default;
+    Animatable();
+    Animatable(T val);
+    Animatable(const Animatable<T>&) = default;
 
     virtual ~Animatable() = default;
     // Should be called every frame with the time elapsed since the last frame

@@ -6,7 +6,7 @@ Label::Label(const raylib::Vector2 &position, const raylib::Vector2 &size, const
 Label::Label(const raylib::Rectangle &rect, const std::string &label)
     : UiElement({rect.x, rect.y}, {rect.width, rect.height}), label_(label) {}
 
-void Label::Update(float dt)
+void Label::Update(float)
 {
     text_.SetText(label_);
     text_.SetFontSize(fontSize_);

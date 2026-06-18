@@ -10,7 +10,7 @@ class Checkbox : public Clickable, public Drawable, public Label
 public:
     Checkbox();
     Checkbox(const raylib::Vector2 &position, const raylib::Vector2 &size, const std::string &label = "");
-    ~Checkbox() = default;
+    virtual ~Checkbox() = default;
 
     void Update(float dt) override;
     void Draw() override;
