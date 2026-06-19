@@ -1,8 +1,8 @@
 from typing import Any, AsyncGenerator, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from server.src.db.schema.sensor_data import SensorData
-from server.src.domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
+from db.schema.sensor_data import SensorData
+from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
 from datetime import datetime, timezone
 
 GetDbCallable = Callable[[], AsyncGenerator[AsyncSession, Any]]

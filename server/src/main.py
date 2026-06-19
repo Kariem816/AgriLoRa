@@ -6,20 +6,20 @@ import ctypes
 from typing import Callable
 
 # Database
-from server.src.db.db import get_db, engine, Base
+from db.db import get_db, engine, Base
 
 # Repositories
-from server.src.repo.sensors import SensorsRepository
-from server.src.repo.sensor_data import SensorDataRepository
+from repo.sensors import SensorsRepository
+from repo.sensor_data import SensorDataRepository
 
 # Services
-from server.src.service.sensors import SensorsService
-from server.src.service.sensor_data import SensorDataService
+from service.sensors import SensorsService
+from service.sensor_data import SensorDataService
 
 # Handlers
-from server.src.handler import Handler
-from server.src.handler.http import HttpHandler
-from server.src.handler.uart import UartHandler
+from handler import Handler
+from handler.http import HttpHandler
+from handler.uart import UartHandler
 
 
 _win_ctrl_handler_ref = None  # Module-level keep-alive
@@ -46,8 +46,6 @@ def register_signal_handler(loop: asyncio.AbstractEventLoop, shutdown: Callable[
 
 async def main():
     # Migrate the database (if needed)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
     # Initialize repositories
     sensors_repo = SensorsRepository(get_db)

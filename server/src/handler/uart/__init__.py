@@ -1,5 +1,5 @@
 import serial_asyncio
-from server.src.handler import Handler
+from handler import Handler
 
 
 class UartHandler(Handler):

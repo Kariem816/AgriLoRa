@@ -1,5 +1,5 @@
-from server.src.repo.sensor_data import SensorDataRepository
-from server.src.domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
+from repo.sensor_data import SensorDataRepository
+from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
 
 
 class SensorDataService:

@@ -1,9 +1,8 @@
 from typing import Any, AsyncGenerator, Callable
-from unittest import result
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import CursorResult, select, delete, update
-from server.src.db.schema.sensors import Sensor
-from server.src.domain.schemas import SensorCreate, SensorCreated, SensorResponse
+from db.schema.sensors import Sensor
+from domain.schemas import SensorCreate, SensorCreated, SensorResponse
 
 GetDbCallable = Callable[[], AsyncGenerator[AsyncSession, Any]]
 

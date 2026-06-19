@@ -1,9 +1,9 @@
 from fastapi import FastAPI
-from server.src.handler import Handler
-from server.src.handler.http import sensors
-from server.src.handler.http import sensor_data
-from server.src.service.sensors import SensorsService
-from server.src.service.sensor_data import SensorDataService
+from handler import Handler
+from handler.http import sensors
+from handler.http import sensor_data
+from service.sensors import SensorsService
+from service.sensor_data import SensorDataService
 import uvicorn
 
 

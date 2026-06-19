@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from server.src.service.sensor_data import SensorDataService
-from server.src.domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
+from service.sensor_data import SensorDataService
+from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
 
 
 class SensorDataHandler:

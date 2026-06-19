@@ -1,5 +1,5 @@
-from server.src.repo.sensors import SensorsRepository
-from server.src.domain.schemas import SensorCreate, SensorCreated, SensorUpdate, SensorResponse
+from repo.sensors import SensorsRepository
+from domain.schemas import SensorCreate, SensorCreated, SensorUpdate, SensorResponse
 
 
 class SensorsService:

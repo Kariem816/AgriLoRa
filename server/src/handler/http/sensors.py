@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from server.src.service.sensors import SensorsService
-from server.src.domain.schemas import SensorCreate, SensorCreated, SensorUpdate, SensorResponse
+from service.sensors import SensorsService
+from domain.schemas import SensorCreate, SensorCreated, SensorUpdate, SensorResponse
 
 
 class SensorHandler:
