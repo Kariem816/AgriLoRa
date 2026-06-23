@@ -23,8 +23,8 @@ class SensorHandler:
             return result
 
         @self.router.get("/", response_model=list[SensorResponse])
-        async def get_all_sensors():
-            return await self.service.get_all_sensors()
+        async def get_all_sensors(page: int = 1, limit: int = 25):
+            return await self.service.get_all_sensors(page, limit)
 
         @self.router.put("/{sensor_id}")
         async def update_sensor(sensor_id: int, sensor: SensorUpdate):

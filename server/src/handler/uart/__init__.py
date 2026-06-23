@@ -3,7 +3,8 @@ from handler import Handler
 
 
 class UartHandler(Handler):
-    def __init__(self, sensors_service, sensor_data_service):
+    def __init__(self, plots_service, sensors_service, sensor_data_service):
+        self.plots_service = plots_service
         self.sensors_service = sensors_service
         self.sensor_data_service = sensor_data_service
 

@@ -2,7 +2,7 @@ from typing import Any, AsyncGenerator, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from db.schema.sensor_data import SensorData
-from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
+from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataRequest, SensorDataResponse
 from datetime import datetime, timezone
 
 GetDbCallable = Callable[[], AsyncGenerator[AsyncSession, Any]]
@@ -37,6 +37,26 @@ class SensorDataRepository:
                 .where(SensorData.sensor_id == sensor_id)
                 .order_by(desc(SensorData.timestamp))
                 .limit(limit)
+            )
+            res = result.scalars().all()
+            mapped = [SensorDataResponse(
+                sensor_id=d.sensor_id,
+                timestamp=d.timestamp,
+                value=d.value
+            ) for d in res]
+            return mapped
+        finally:
+            await gen.aclose()
+            
+    async def get_n_after(self, data: SensorDataRequest) -> list[SensorDataResponse]:
+        gen = self.gen()
+        try:
+            db = await anext(gen)
+            result = await db.execute(
+                select(SensorData)
+                .where(SensorData.sensor_id == data.sensor_id and SensorData.timestamp > data.after)
+                .order_by(desc(SensorData.timestamp))
+                .limit(data.limit)
             )
             res = result.scalars().all()
             mapped = [SensorDataResponse(

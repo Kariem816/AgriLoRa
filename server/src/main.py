@@ -6,13 +6,15 @@ import ctypes
 from typing import Callable
 
 # Database
-from db.db import get_db, engine, Base
+from db.db import get_db
 
 # Repositories
+from repo.plots import PlotsRepository
 from repo.sensors import SensorsRepository
 from repo.sensor_data import SensorDataRepository
 
 # Services
+from service.plots import PlotsService
 from service.sensors import SensorsService
 from service.sensor_data import SensorDataService
 
@@ -48,16 +50,18 @@ async def main():
     # Migrate the database (if needed)
 
     # Initialize repositories
+    plots_repo = PlotsRepository(get_db)
     sensors_repo = SensorsRepository(get_db)
     sensor_data_repo = SensorDataRepository(get_db)
 
     # Initialize services
+    plots_service = PlotsService(plots_repo)
     sensors_service = SensorsService(sensors_repo)
     sensor_data_service = SensorDataService(sensor_data_repo)
 
     # Instantiate handlers
-    http_handler = HttpHandler(sensors_service, sensor_data_service)
-    uart_handler = UartHandler(sensors_service, sensor_data_service)
+    http_handler = HttpHandler(plots_service, sensors_service, sensor_data_service)
+    uart_handler = UartHandler(plots_service, sensors_service, sensor_data_service)
 
     # Determine which handler to initialize
     handler_type = os.getenv("HANDLER_TYPE", "http").lower()

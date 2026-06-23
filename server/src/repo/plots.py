@@ -2,79 +2,74 @@ from typing import Any, AsyncGenerator, Callable
 from unicodedata import name
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import CursorResult, select, delete, update
+from db.schema.plot import Plot
 from db.schema.sensors import Sensor
-from domain.schemas import SensorBulkResponse, SensorCreate, SensorCreated, SensorResponse, SensorUpdate
+from domain.schemas import PlotCreate, PlotCreated, PlotUpdate, PlotResponse, SensorResponse
 
 GetDbCallable = Callable[[], AsyncGenerator[AsyncSession, Any]]
 
-
-class SensorsRepository:
+class PlotsRepository:
     def __init__(self, gen: GetDbCallable):
         self.gen = gen
 
-    async def create(self, data: SensorCreate) -> SensorCreated:
+    async def create(self, data: PlotCreate) -> PlotCreated:
         gen = self.gen()
         try:
             db = await anext(gen)
-            sensor = Sensor(
-                name=data.name,
-                type=data.type,
-                plot_id=data.plot_id,
-                loc_x=data.loc_x,
-                loc_y=data.loc_y)
-            db.add(sensor)
+            plot = Plot(name=data.name)
+            db.add(plot)
             await db.commit()
-            await db.refresh(sensor)
-            return SensorCreated(id=sensor.id)
+            await db.refresh(plot)
+            return PlotCreated(id=plot.id)
         finally:
             await gen.aclose()
 
-    async def get_by_id(self, sensor_id: int) -> SensorResponse | None:
+    async def get_by_id(self, plot_id: int) -> PlotResponse | None:
         gen = self.gen()
         try:
             db = await anext(gen)
             result = await db.execute(
-                select(Sensor).where(Sensor.id == sensor_id)
+                select(Plot).where(Plot.id == plot_id)
             )
             res = result.scalar_one_or_none()
             if res:
-                return SensorResponse(
-                    id=res.id,
-                    name=res.name,
-                    type=res.type,
-                    plot_id=res.plot.id,
-                    plot_name=res.plot.name,
-                    loc_x=res.loc_x,
-                    loc_y=res.loc_y)
+                return PlotResponse(id=res.id, name=res.name)
             return None
         finally:
             await gen.aclose()
-
-    async def get_all(self, page: int, limit: int) -> list[SensorBulkResponse]:
+            
+    async def get_sensors(self, plot_id: int) -> list[SensorResponse]:
         gen = self.gen()
         try:
             db = await anext(gen)
-            result = await db.execute(select(Sensor).limit(limit).offset((page - 1) * limit))
-            return [SensorBulkResponse(
+            result = await db.execute(select(Sensor).where(Sensor.plot_id == plot_id))
+            return [SensorResponse(
                 id=s.id,
                 name=s.name,
                 type=s.type,
                 plot_id=s.plot.id,
-                plot_name=s.plot.name) for s in result.scalars().all()]
+                plot_name=s.plot.name,
+                loc_x=s.loc_x,
+                loc_y=s.loc_y
+                ) for s in result.scalars().all()]
         finally:
             await gen.aclose()
 
-    async def update(self, sensor_id: int, data: SensorUpdate) -> bool:
+    async def get_all(self) -> list[PlotResponse]:
+        gen = self.gen()
+        try:
+            db = await anext(gen)
+            result = await db.execute(select(Plot))
+            return [PlotResponse(id=s.id, name=s.name) for s in result.scalars().all()]
+        finally:
+            await gen.aclose()
+
+    async def update(self, plot_id: int, data: PlotUpdate) -> bool:
         gen = self.gen()
         try:
             db = await anext(gen)
             result = await db.execute(
-                update(Sensor).where(Sensor.id == sensor_id).values(
-                    name=data.name,
-                    type=data.type,
-                    plot_id=data.plot_id,
-                    loc_x=data.loc_x,
-                    loc_y=data.loc_y)
+                update(Plot).where(Plot.id == plot_id).values(name=data.name)
             )
             assert isinstance(result, CursorResult)
             rows = result.rowcount
@@ -85,13 +80,13 @@ class SensorsRepository:
         finally:
             await gen.aclose()
 
-    async def delete(self, sensor_id: int) -> bool:
+    async def delete(self, plot_id: int) -> bool:
         gen = self.gen()
         try:
             db = await anext(gen)
             res = await db.execute(
-                delete(Sensor).where(Sensor.id ==
-                                     sensor_id).returning(Sensor.id)
+                delete(Plot).where(Plot.id ==
+                                     plot_id).returning(Plot.id)
             )
             deleted_id = res.scalar_one_or_none()
             if not deleted_id:

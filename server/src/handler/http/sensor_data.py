@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from service.sensor_data import SensorDataService
 from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataResponse
+from datetime import datetime
 
 
 class SensorDataHandler:
@@ -13,8 +14,8 @@ class SensorDataHandler:
     def _register_routes(self):
         @self.router.post("/", response_model=SensorDataCreated)
         async def add_sensor_data(data: SensorDataCreate):
-            return await self.service.add_sensor_data(data)
+            return await self.service.add_data(data)
 
         @self.router.get("/{sensor_id}", response_model=list[SensorDataResponse])
-        async def get_last_100(sensor_id: int):
-            return await self.service.get_last_100(sensor_id)
+        async def get_sensor_data(sensor_id: int, limit: int = 100, after: datetime | None = None):
+            return await self.service.get_data(sensor_id, limit, after)
