@@ -3,6 +3,7 @@ import signal
 import sys
 import asyncio
 import ctypes
+from types import CoroutineType
 from typing import Callable
 
 # Database
@@ -31,11 +32,11 @@ def register_signal_handler(loop: asyncio.AbstractEventLoop, shutdown: Callable[
     if sys.platform == "win32":
         global _win_ctrl_handler_ref
 
-        def win_ctrl_handler(dw_ctrl_type):
+        def win_ctrl_handler(dw_ctrl_type: ctypes.c_ulong) -> ctypes.c_bool:
             if dw_ctrl_type in (0, 2):  # CTRL_C_EVENT or CTRL_CLOSE_EVENT
                 loop.call_soon_threadsafe(shutdown)
-                return True
-            return False
+                return ctypes.c_bool(True)
+            return ctypes.c_bool(False)
 
         WINFUNCTYPE = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)
         handler_ptr = WINFUNCTYPE(win_ctrl_handler)
@@ -66,7 +67,7 @@ async def main():
     # Determine which handler to initialize
     handler_type = os.getenv("HANDLER_TYPE", "http").lower()
     print(f"Starting IoT server with handler type: {handler_type}")
-    tasks = []
+    tasks: list[CoroutineType[None, None, None]] = []
     handlers: list[Handler] = []
     if handler_type in ("http", "both"):
         handlers.append(http_handler)

@@ -1,7 +1,7 @@
 from typing import Any, AsyncGenerator, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from db.schema.sensor_data import SensorData
+from db.schema import SensorData
 from domain.schemas import SensorDataCreate, SensorDataCreated, SensorDataRequest, SensorDataResponse
 from datetime import datetime, timezone
 

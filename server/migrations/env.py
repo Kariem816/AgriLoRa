@@ -13,11 +13,9 @@ from alembic import context
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 # Import your Base and DATABASE_URL
-from src.db.db import Base, DATABASE_URL
+from src.db.db import DATABASE_URL
 
-import src.db.schema.plot
-import src.db.schema.sensor_data
-import src.db.schema.sensors
+from src.db.schema import Base, Plot, Sensor, SensorData # type: ignore
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

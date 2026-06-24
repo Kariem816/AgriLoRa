@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from db.schema.sensor_type import SensorType
+from db.schema import SensorType
 
 class PlotCreate(BaseModel):
     name: str

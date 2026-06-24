@@ -1,9 +1,7 @@
 from typing import Any, AsyncGenerator, Callable
-from unicodedata import name
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import CursorResult, select, delete, update
-from db.schema.plot import Plot
-from db.schema.sensors import Sensor
+from db.schema import Plot, Sensor
 from domain.schemas import PlotCreate, PlotCreated, PlotUpdate, PlotResponse, SensorResponse
 
 GetDbCallable = Callable[[], AsyncGenerator[AsyncSession, Any]]

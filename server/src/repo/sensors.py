@@ -1,8 +1,8 @@
 from typing import Any, AsyncGenerator, Callable
-from unicodedata import name
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import CursorResult, select, delete, update
-from db.schema.sensors import Sensor
+from sqlalchemy.orm import selectinload
+from db.schema import Sensor
 from domain.schemas import SensorBulkResponse, SensorCreate, SensorCreated, SensorResponse, SensorUpdate
 
 GetDbCallable = Callable[[], AsyncGenerator[AsyncSession, Any]]
@@ -34,7 +34,9 @@ class SensorsRepository:
         try:
             db = await anext(gen)
             result = await db.execute(
-                select(Sensor).where(Sensor.id == sensor_id)
+                select(Sensor)
+                .options(selectinload(Sensor.plot))
+                .where(Sensor.id == sensor_id)
             )
             res = result.scalar_one_or_none()
             if res:
@@ -54,7 +56,9 @@ class SensorsRepository:
         gen = self.gen()
         try:
             db = await anext(gen)
-            result = await db.execute(select(Sensor).limit(limit).offset((page - 1) * limit))
+            result = await db.execute(select(Sensor)
+                                      .options(selectinload(Sensor.plot))
+                                      .limit(limit).offset((page - 1) * limit))
             return [SensorBulkResponse(
                 id=s.id,
                 name=s.name,
