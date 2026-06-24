@@ -31,30 +31,36 @@ def main():
         ]
     )
 
-    print(f"[Watcher] Listening for file changes...")
-    print(f"[Watcher] Starting Server...\n")
-    current_process = start(target_script)
-    
-    try:
-        for changes in watch('src', watch_filter=custom_filter):
-            for change_type, file_path in changes:
-                relative_path = os.path.relpath(file_path, start='src')
-                print(f"\n[Watcher] Detected {relative_path} was {change_type.name}")
-            print("[Watcher] Restarting app...\n")
-            
-            finish(current_process) 
-            try:
-                current_process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                current_process.kill()
-            
-            print()
-            current_process = start(target_script)
-
-    except KeyboardInterrupt:
-        print("\n[Watcher] Shutting down...\n")
-        finish(current_process)
-        current_process.wait()
+    watch_mode = sys.argv[-1] in ["-w", "--watch", "watch"]
+    if watch_mode:
+        current_process = start(target_script)
+        try:
+            print(f"[Watcher] Starting Server...")
+            print(f"[Watcher] Listening for file changes...\n")
+            for changes in watch('src', watch_filter=custom_filter):
+                for change_type, file_path in changes:
+                    relative_path = os.path.relpath(file_path, start='src')
+                    print(f"\n[Watcher] Detected \"{relative_path}\" was {change_type.name}")
+                print("[Watcher] Restarting app...\n")
+                
+                finish(current_process) 
+                try:
+                    current_process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    current_process.kill()
+                
+                print()
+                current_process = start(target_script)
+        except KeyboardInterrupt:
+            print("\n[Watcher] Shutting down...\n")
+            finish(current_process)
+            current_process.wait()
+    else:
+        print(f"[Runner] Starting Server...\n")
+        try:
+            subprocess.run([sys.executable, target_script])
+        except KeyboardInterrupt:
+            print("\n[Runner] Shutting down...\n")
 
 if __name__ == "__main__":
     main()
