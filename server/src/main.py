@@ -48,8 +48,6 @@ def register_signal_handler(loop: asyncio.AbstractEventLoop, shutdown: Callable[
 
 
 async def main():
-    # Migrate the database (if needed)
-
     # Initialize repositories
     plots_repo = PlotsRepository(get_db)
     sensors_repo = SensorsRepository(get_db)
