@@ -1,7 +1,5 @@
 #include <raylib-cpp/raylib-cpp.hpp>
 
-#include <iostream>
-
 #include <camera.h>
 #include <ui/window.h>
 #include <widgets/hud.h>
