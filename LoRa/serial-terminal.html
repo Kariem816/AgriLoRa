@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Serial Terminal</title>
+  <title>Serial Terminal v2</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap');
 
@@ -437,7 +437,7 @@
   </div>
 
   <header>
-    <div class="logo">&gt;_ <span>serial</span>term<sup>v2</sup></div>
+    <div class="logo">&gt;_ <span>serial</span>term</div>
     <div class="spacer"></div>
     <div class="counters">
       <span class="counter-rx">RX: <span id="rx-count">0</span> B</span>
@@ -521,56 +521,129 @@
 
   <script>
     // ════════════════════════════════════════════════════════════════════════════
+    const FRAME_HEADER_SIZE = 4; // magic, type, length(2)
+    const FRAME_MAGIC = 0xCA;
+    const FRAME_MAX_PAYLOAD = 256;
+
+    const FRAME_TYPE_INFO = 0x00;
+    const FRAME_TYPE_WARN = 0x01;
+    const FRAME_TYPE_ERROR = 0x02;
+    const FRAME_TYPE_PKT = 0x03;
+    const FRAME_TYPE_MAX = 0x04;
+    const FRAME_TYPE_NAMES = ['INFO', 'WARN', 'ERROR', 'PKT'];
+
+    const PACKET_SIZE = 34;
+
+    // ════════════════════════════════════════════════════════════════════════════
     //  IMPLEMENT YOUR DECODER HERE
     //
-    //  Called once per complete packet (exactly `packetSize` bytes).
-    //  Return a string to display it in the terminal, or null/undefined to
-    //  suppress output for that packet.
+    //  Called with the entire accumulated RX buffer every time new bytes
+    //  arrive (not just one packet's worth) — this lets you support
+    //  variable-length packets by inspecting a length field yourself.
     //
-    //  @param {Uint8Array} bytes  — raw bytes of the packet
+    //  Return one of:
+    //    { read: number, res: string | null }  — a packet was parsed:
+    //        `read` = how many bytes to consume from the front of the buffer
+    //        `res`  = string to display in the terminal, or null to consume
+    //                 the bytes silently without printing anything
+    //    null — not enough bytes yet to determine/parse a full packet;
+    //        nothing is consumed, the counter is not advanced, and the
+    //        function will be called again once more bytes arrive
+    //
+    //  @param {Uint8Array} bytes  — full accumulated RX buffer
     //  @param {number}     index  — packet counter (0-based)
-    //  @returns {string | null | undefined}
+    //  @returns {{read: number, res: string | null} | null}
     // ════════════════════════════════════════════════════════════════════════════
     function decodePacket(bytes, index) {
-      let read = 0;
-      const view = new DataView(bytes.buffer);
-      const headerVersion = view.getUint8(read); read += 1;
-      const fromNode = view.getUint8(read); read += 1;
-      const toNode = view.getUint8(read); read += 1;
-      const sequenceNumber = view.getUint16(read, true); read += 2;
-      const commandId = view.getUint8(read); read += 1;
-      const payloadLength = view.getUint8(read); read += 1;
-      const payload = bytes.slice(read, read + 16); // Adjust size as needed
-      read += 16;
-      const checksum = view.getUint8(read); read += 1;
-      const snr = view.getFloat32(read, true); read += 4;
-      const frequencyError = view.getInt32(read, true); read += 4;
-      const rssi = view.getInt16(read, true); read += 2;
-      
-      const packet = {
-        meta: {
-          rssi,
-          snr,
-          frequencyError,
-        },
-        header: {
-          version: headerVersion,
-          from: fromNode,
-          to: toNode,
-          sequenceNumber
-        },
-        command: {
-          id: commandId,
-          payloadLength: payloadLength,
-          payload: Array.from(payload)
-        },
-        checksum,
-      };
-      return JSON.stringify(packet);
-    }
-    const PACKET_SIZE = 34;
-    // ════════════════════════════════════════════════════════════════════════════
+      if (bytes.length < FRAME_HEADER_SIZE) return null; // wait for more data
 
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+      const magic = view.getUint8(0);
+      const type = view.getUint8(1);
+      const length = view.getUint16(2, true);
+      if (magic !== FRAME_MAGIC) {
+        logErr(`decodePacket: invalid magic byte 0x${magic.toString(16)} at index ${index}`);
+        const nextMagicIndex = bytes.indexOf(FRAME_MAGIC, 1);
+        if (nextMagicIndex >= 0) {
+          logErr(`decodePacket: skipping to next magic byte at index ${nextMagicIndex}`);
+          return { read: nextMagicIndex, res: null };
+        } else {
+          logErr(`decodePacket: no more magic bytes found, skipping to end of buffer`);
+          return { read: bytes.length, res: null };
+        }
+      }
+      if (type >= FRAME_TYPE_MAX) {
+        logErr(`decodePacket: invalid frame type 0x${type.toString(16)} at index ${index}`);
+        const nextMagicIndex = bytes.indexOf(FRAME_MAGIC, 1);
+        if (nextMagicIndex >= 0) {
+          logErr(`decodePacket: skipping to next magic byte at index ${nextMagicIndex}`);
+          return { read: nextMagicIndex, res: null };
+        } else {
+          logErr(`decodePacket: no more magic bytes found, skipping to end of buffer`);
+          return { read: bytes.length, res: null };
+        }
+      }
+      if (length > FRAME_MAX_PAYLOAD) {
+        logErr(`decodePacket: invalid payload length ${length} at index ${index}`);
+        const nextMagicIndex = bytes.indexOf(FRAME_MAGIC, 1);
+        if (nextMagicIndex >= 0) {
+          logErr(`decodePacket: skipping to next magic byte at index ${nextMagicIndex}`);
+          return { read: nextMagicIndex, res: null };
+        } else {
+          logErr(`decodePacket: no more magic bytes found, skipping to end of buffer`);
+          return { read: bytes.length, res: null };
+        }
+      }
+
+      const totalSize = FRAME_HEADER_SIZE + length;
+      if (bytes.length < totalSize) return null; // full packet hasn't arrived yet
+
+      const payload = bytes.slice(FRAME_HEADER_SIZE, totalSize);
+      if (type === FRAME_TYPE_PKT) {
+        if (length !== PACKET_SIZE) {
+          logErr(`decodePacket: invalid packet length ${length} (expected ${PACKET_SIZE}) at index ${index}`);
+          return { read: totalSize, res: null };
+        }
+
+
+        let read = FRAME_HEADER_SIZE;
+        const headerVersion = view.getUint8(read); read += 1;
+        const fromNode = view.getUint8(read); read += 1;
+        const toNode = view.getUint8(read); read += 1;
+        const sequenceNumber = view.getUint16(read, true); read += 2;
+        const commandId = view.getUint8(read); read += 1;
+        const payloadLength = view.getUint8(read); read += 1;
+        const payload = bytes.slice(read, read + payloadLength); read += 16;
+        const checksum = view.getUint8(read); read += 1;
+        const snr = view.getFloat32(read, true); read += 4;
+        const frequencyError = view.getInt32(read, true); read += 4;
+        const rssi = view.getInt16(read, true); read += 2;
+
+        const packet = {
+          meta: {
+            rssi,
+            snr,
+            frequencyError,
+          },
+          header: {
+            version: headerVersion,
+            from: fromNode,
+            to: toNode,
+            sequenceNumber
+          },
+          command: {
+            id: commandId,
+            payloadLength: payloadLength,
+            payload: Array.from(payload.slice(0, payloadLength)),
+          },
+          checksum,
+        };
+        return { read: totalSize, res: `<PACKET> ${JSON.stringify(packet)}` };
+      }
+
+      const payloadText = new TextDecoder().decode(payload);
+      return { read: totalSize, res: `<${FRAME_TYPE_NAMES[type]}> ${payloadText}` };
+    }
 
     // ── State ──────────────────────────────────────────────────────────────────
     let port = null;
@@ -702,8 +775,10 @@
     }
 
     // ── Packet accumulator (decode mode) ──────────────────────────────────────
-    // Appends incoming chunk to rxBuffer, then slices off complete packets and
-    // dispatches each one to decodePacket().
+    // Appends incoming chunk to rxBuffer, then repeatedly calls decodePacket()
+    // with the whole accumulated buffer. decodePacket tells us how many bytes
+    // it consumed (variable-length packets), or returns null if there isn't
+    // enough data yet to parse a full packet.
     function handleChunk(chunk) {
       if (!decodeMode) { handleChunkRaw(chunk); return; }
 
@@ -713,26 +788,28 @@
       merged.set(chunk, rxBuffer.length);
       rxBuffer = merged;
 
-      const packetSize = PACKET_SIZE;
-
-      while (rxBuffer.length >= packetSize) {
-        const packet = rxBuffer.slice(0, packetSize);
-        rxBuffer = rxBuffer.slice(packetSize);
-
-        let result;
+      while (rxBuffer.length > 0) {
+        let outcome;
         try {
-          result = decodePacket(packet, packetCount);
+          outcome = decodePacket(rxBuffer, packetCount);
         } catch (e) {
           logErr(`decodePacket error (packet #${packetCount}): ${e.message}`);
-          packetCount++;
-          pktCount.textContent = packetCount;
-          continue;
+          break; // avoid spinning on a decoder that throws on the same buffer
         }
 
+        if (outcome == null) break; // not enough data yet — wait for more
+
+        const { read, res } = outcome;
+        if (!(read > 0)) {
+          logErr(`decodePacket returned invalid read=${read} — stopping to avoid infinite loop`);
+          break;
+        }
+
+        rxBuffer = rxBuffer.slice(read);
         packetCount++;
         pktCount.textContent = packetCount;
 
-        if (result != null) logRx(result);
+        if (res != null) logRx(res);
       }
     }
 
@@ -761,10 +838,10 @@
         const stopBits = parseInt(document.getElementById('stop-bits').value);
         const parity = document.getElementById('parity').value;
         const flowControl = document.getElementById('flow').value;
-        const packetSize = PACKET_SIZE;
 
         await port.open({ baudRate, dataBits, stopBits, parity, flowControl });
-        logInfo(`Connected — ${baudRate} baud, ${dataBits}${parity[0].toUpperCase()}${stopBits} — packet size: ${packetSize} B`);
+        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+        logInfo(`Connected — ${baudRate} baud, ${dataBits}${parity[0].toUpperCase()}${stopBits}`);
         setConnected(true);
         writer = port.writable.getWriter();
         startReadLoop();
@@ -898,8 +975,7 @@
       }
     });
 
-    logInfo('Web Serial Terminal v2 ready — set packet size, then click Connect');
-    logInfo('Implement decodePacket(bytes, index) at the top of the <script> block');
+    logInfo('Web Serial Terminal ready — click Connect to begin');
   </script>
 </body>
 

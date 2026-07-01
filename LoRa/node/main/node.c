@@ -67,10 +67,10 @@ static void tx_task(void *ctx) {
   packet.command.command_id = 1;
   packet.command.payload_length = strlen((char *)payload);
   memcpy(packet.command.payload, payload, packet.command.payload_length);
-  packet.checksum = 42;
 
   while (1) {
     ESP_LOGI(TAG, "Sending packet #%u", packet.header.sequence_number);
+    packet_calculate_checksum(&packet);
 
     esp_err_t err = sx127x_lora_tx_set_for_transmission(
         (uint8_t *)&packet, sizeof(packet), dev);

@@ -1,16 +1,16 @@
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "driver/uart.h"
-#include "esp_log.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+
 #include "sx127x.h"
+
 #include <stdio.h>
 #include <string.h>
 
-#include "reported.h"
-
-static const char *TAG = "Gateway";
+#include "frame.h"
+#include "report.h"
 
 #define PIN_LORA_NSS 5
 #define PIN_LORA_RST 14
@@ -27,41 +27,55 @@ static const char *TAG = "Gateway";
 #define UART_BAUD 115200
 #define UART_BUF_SIZE 1024
 
-#define MAX_PACKET_SZ 256
-#define QUEUE_DEPTH 8
-
-#ifdef DISABLE_LOGS
-// disable logs for clean UART output
-// TODO: replace with report-friendly logging
-#undef ESP_LOGI
-#undef ESP_LOGW
-#undef ESP_LOGE
-#define ESP_LOGI(TAG, fmt, ...)                                                \
-  do {                                                                         \
-  } while (0)
-#define ESP_LOGW(TAG, fmt, ...)                                                \
-  do {                                                                         \
-  } while (0)
-#define ESP_LOGE(TAG, fmt, ...)                                                \
-  do {                                                                         \
-  } while (0)
-#endif
+#define FRAME_QUEUE_DEPTH 16
+#define TX_QUEUE_DEPTH 64
 
 const UBaseType_t eventArrayIndex = 0;
 const UBaseType_t txDoneArrayIndex = 0;
 
-typedef struct {
-  uint8_t data[MAX_PACKET_SZ];
-  uint16_t length;
-} lora_packet_t;
-
-static QueueHandle_t rx_queue = NULL;
+static QueueHandle_t frame_queue = NULL;
 static QueueHandle_t tx_queue = NULL;
 
 static TaskHandle_t lora_event_processor_task_handle = NULL;
 static TaskHandle_t tx_task_handle = NULL;
 
 static sx127x device;
+
+bool log_info(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  Frame frame = frame_vlog(FRAME_INFO, fmt, args);
+  va_end(args);
+
+  return xQueueSend(frame_queue, &frame, pdMS_TO_TICKS(100));
+}
+
+bool log_warn(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  Frame frame = frame_vlog(FRAME_WARN, fmt, args);
+  va_end(args);
+
+  return xQueueSend(frame_queue, &frame, pdMS_TO_TICKS(100));
+}
+
+bool log_err(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  Frame frame = frame_vlog(FRAME_ERROR, fmt, args);
+  va_end(args);
+
+  return xQueueSend(frame_queue, &frame, pdMS_TO_TICKS(100));
+}
+
+bool log_packet(const ReportPacket *packet) {
+  Frame frame = {0};
+  frame.type = FRAME_PKT;
+  frame.len = sizeof(ReportPacket);
+  memcpy(frame.payload, packet, sizeof(ReportPacket));
+
+  return xQueueSend(frame_queue, &frame, pdMS_TO_TICKS(100));
+}
 
 static void IRAM_ATTR gpio_isr_handler(void *arg) {
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -79,80 +93,94 @@ static void lora_event_processor_task(void *arg) {
 }
 
 static void uart_queuer_task(void *arg) {
-  lora_packet_t pkt;
+  Packet pkt;
 
   while (1) {
-    uint16_t len = 0;
-    int n = uart_read_bytes(UART_PORT, &len, 1, portMAX_DELAY);
-    if (n <= 0 || len == 0 || len > MAX_PACKET_SZ) {
-      ESP_LOGW(TAG, "uart_queuer: bad length byte %d", len);
+    size_t buffer_size;
+    esp_err_t err = uart_get_buffered_data_len(UART_PORT, &buffer_size);
+    if (err != ESP_OK) {
+      log_err("uart_queuer: failed to get buffered data length");
       continue;
     }
 
-    pkt.length = 0;
-    while (pkt.length < len) {
-      n = uart_read_bytes(UART_PORT, pkt.data + pkt.length, len - pkt.length,
-                          pdMS_TO_TICKS(500));
-      if (n < 0)
-        break;
-      pkt.length += n;
-    }
-
-    if (pkt.length != len) {
-      ESP_LOGW(TAG, "uart_queuer: incomplete read %d/%d", pkt.length, len);
+    if (buffer_size < sizeof(pkt)) {
+      vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }
 
-    if (xQueueSend(tx_queue, &pkt, pdMS_TO_TICKS(100))) {
-      ESP_LOGW(TAG, "uart_queuer: tx_queue full, dropping packet");
+    int n = uart_read_bytes(UART_PORT, &pkt, sizeof(pkt), portMAX_DELAY);
+    if (n < 0) {
+      log_err("uart_queuer: failed to read bytes from UART");
+      continue;
+    }
+
+    if (n != sizeof(pkt)) {
+      log_warn("uart_queuer: invalid packet. read %d bytes. expected %zu", n,
+               sizeof(pkt));
+      continue;
+    }
+
+    if (xQueueSend(tx_queue, &pkt, pdMS_TO_TICKS(portMAX_DELAY))) {
+      log_warn("uart_queuer: tx_queue full, dropping packet");
     }
   }
 }
 
-static void tx_task(void *arg) {
-  lora_packet_t pkt;
+static void tx_task(void *ctx) {
+  sx127x *dev = (sx127x *)ctx;
+  Packet pkt;
 
   while (1) {
     if (xQueueReceive(tx_queue, &pkt, portMAX_DELAY) != pdTRUE) {
       continue;
     }
 
-    ESP_LOGI(TAG, "tx_task: sending %d bytes via LoRa", pkt.length);
+    packet_calculate_checksum(&pkt);
 
-    esp_err_t err =
-        sx127x_lora_tx_set_for_transmission(pkt.data, pkt.length, &device);
+    esp_err_t err = sx127x_lora_tx_set_for_transmission((const uint8_t *)&pkt,
+                                                        sizeof(pkt), dev);
     if (err != SX127X_OK) {
-      ESP_LOGE(TAG, "tx_task: set_for_transmission failed: %d", err);
+      log_err("tx_task: set_for_transmission failed: %d", err);
       continue;
     }
 
-    err = sx127x_set_opmod(SX127X_MODE_TX, SX127X_MODULATION_LORA, &device);
+    err = sx127x_set_opmod(SX127X_MODE_TX, SX127X_MODULATION_LORA, dev);
     if (err != SX127X_OK) {
-      ESP_LOGE(TAG, "tx_task: set TX mode failed: %d", err);
+      log_err("tx_task: set TX mode failed: %d", err);
       continue;
     }
 
     uint32_t notified =
         ulTaskNotifyTakeIndexed(txDoneArrayIndex, pdTRUE, pdMS_TO_TICKS(2000));
     if (notified == 0) {
-      ESP_LOGW(TAG, "tx_task: tx-done timeout, re-arming RX");
+      log_warn("tx_task: tx-done timeout, re-arming RX");
     } else {
-      ESP_LOGI(TAG, "tx_task: tx done");
+      log_info("tx_task: tx done");
     }
 
     // Return to RX mode regardless
-    sx127x_set_opmod(SX127X_MODE_RX_CONT, SX127X_MODULATION_LORA, &device);
+    sx127x_set_opmod(SX127X_MODE_RX_CONT, SX127X_MODULATION_LORA, dev);
   }
 }
 
 static void rx_task(void *arg) {
-  ReportedMessage msg;
+  Frame frame;
   while (1) {
-    if (xQueueReceive(rx_queue, &msg, portMAX_DELAY) != pdTRUE) {
+    if (xQueueReceive(frame_queue, &frame, portMAX_DELAY) != pdTRUE) {
       continue;
     }
 
-    uart_write_bytes(UART_PORT, &msg, sizeof(msg));
+    FrameHeader hdr = {
+        .magic = FRAME_MAGIC,
+        .type = frame.type,
+        .len = frame.len,
+    };
+
+    uart_write_bytes(UART_PORT, &hdr, sizeof(hdr));
+
+    if (frame.len) {
+      uart_write_bytes(UART_PORT, frame.payload, frame.len);
+    }
   }
 }
 
@@ -166,19 +194,23 @@ static void lora_tx_callback(void *ctx) {
 static void lora_rx_callback(void *ctx, uint8_t *data, uint16_t data_length) {
   sx127x *dev = (sx127x *)ctx;
 
-  ReportedMessage msg;
+  ReportPacket msg;
   esp_err_t err;
   if (data_length != sizeof(msg.packet)) {
-    ESP_LOGW(TAG, "rx_callback: invalid length %d", data_length);
+    log_warn("rx_callback: invalid length %d", data_length);
     return;
   }
 
   memcpy(&msg.packet, data, data_length);
+  if (!packet_verify_checksum(&msg.packet)) {
+    log_warn("rx_callback: invalid checksum");
+    return;
+  }
 
   int16_t rssi;
   err = sx127x_rx_get_packet_rssi(dev, &rssi);
   if (err != SX127X_OK) {
-    ESP_LOGW(TAG, "rx_callback: failed to get packet RSSI");
+    log_warn("rx_callback: failed to get packet RSSI");
     msg.rssi = -1;
   } else {
     msg.rssi = rssi;
@@ -187,7 +219,7 @@ static void lora_rx_callback(void *ctx, uint8_t *data, uint16_t data_length) {
   float snr;
   err = sx127x_lora_rx_get_packet_snr(dev, &snr);
   if (err != SX127X_OK) {
-    ESP_LOGW(TAG, "rx_callback: failed to get packet SNR");
+    log_warn("rx_callback: failed to get packet SNR");
     msg.snr = -1.0f;
   } else {
     msg.snr = snr;
@@ -196,21 +228,21 @@ static void lora_rx_callback(void *ctx, uint8_t *data, uint16_t data_length) {
   int32_t frequency_error;
   err = sx127x_rx_get_frequency_error(dev, &frequency_error);
   if (err != SX127X_OK) {
-    ESP_LOGW(TAG, "rx_callback: failed to get frequency error");
+    log_warn("rx_callback: failed to get frequency error");
     msg.frequency_error = -1;
   } else {
     msg.frequency_error = frequency_error;
   }
 
-  if (!xQueueSend(rx_queue, &msg, pdMS_TO_TICKS(100))) {
-    ESP_LOGW(TAG, "rx_callback: rx_queue full, dropping packet");
+  if (!log_packet(&msg)) {
+    log_warn("rx_callback: rx_queue full, dropping packet");
   }
 }
 
 void app_main(void) {
-  rx_queue = xQueueCreate(QUEUE_DEPTH, sizeof(ReportedMessage));
-  tx_queue = xQueueCreate(QUEUE_DEPTH, sizeof(lora_packet_t));
-  configASSERT(rx_queue && tx_queue);
+  frame_queue = xQueueCreate(FRAME_QUEUE_DEPTH, sizeof(Frame));
+  tx_queue = xQueueCreate(TX_QUEUE_DEPTH, sizeof(Packet));
+  configASSERT(frame_queue && tx_queue);
 
   uart_config_t uart_cfg = {
       .baud_rate = UART_BAUD,
@@ -246,7 +278,7 @@ void app_main(void) {
 
   ESP_ERROR_CHECK(sx127x_create(spi_device, &device));
   ESP_ERROR_CHECK(
-      sx127x_set_opmod(SX127X_MODE_SLEEP, SX127X_MODULATION_LORA, &device));
+      sx127x_set_opmod(SX127X_MODE_STANDBY, SX127X_MODULATION_LORA, &device));
   ESP_ERROR_CHECK(sx127x_set_frequency(LORA_FREQUENCY, &device));
   ESP_ERROR_CHECK(sx127x_lora_reset_fifo(&device));
   ESP_ERROR_CHECK(sx127x_lora_set_bandwidth(LORA_BANDWIDTH, &device));
@@ -281,5 +313,5 @@ void app_main(void) {
   ESP_ERROR_CHECK(
       sx127x_set_opmod(SX127X_MODE_RX_CONT, SX127X_MODULATION_LORA, &device));
 
-  ESP_LOGI(TAG, "Gateway started");
+  log_info("Gateway started");
 }

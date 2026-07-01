@@ -1,5 +1,5 @@
-#ifndef AGRI_LORA_PACKET_H
-#define AGRI_LORA_PACKET_H
+#ifndef AGRI_PACKET_H
+#define AGRI_PACKET_H
 
 #include <stdint.h>
 
@@ -22,4 +22,7 @@ typedef struct __attribute__((packed)) {
   uint8_t checksum;
 } Packet;
 
-#endif //AGRI_LORA_PACKET_H
+void packet_calculate_checksum(Packet *packet);
+bool packet_verify_checksum(Packet *packet);
+
+#endif //AGRI_PACKET_H
