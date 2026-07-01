@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Serial Terminal</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --green: #3fb950;
+      --green-d: #238636;
+      --amber: #d29922;
+      --red: #f85149;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+      --sans: 'Inter', system-ui, sans-serif;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--green);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .logo span {
+      color: var(--muted);
+    }
+
+    .logo sup {
+      font-size: 9px;
+      color: var(--purple);
+      vertical-align: super;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      padding: 8px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    select,
+    .btn,
+    input[type="number"] {
+      font-family: var(--sans);
+      font-size: 13px;
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      padding: 5px 10px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    select:hover,
+    .btn:hover,
+    input[type="number"]:hover {
+      border-color: var(--blue);
+    }
+
+    select:focus,
+    input[type="number"]:focus {
+      border-color: var(--blue);
+    }
+
+    input[type="number"] {
+      width: 72px;
+      cursor: text;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button {
+      opacity: 0.4;
+    }
+
+    .btn {
+      font-weight: 500;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-connect {
+      background: var(--green-d);
+      border-color: var(--green);
+      color: #fff;
+    }
+
+    .btn-connect:hover {
+      background: #2ea043;
+    }
+
+    .btn-disconnect {
+      background: #3a1c1c;
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .btn-disconnect:hover {
+      background: #4a2020;
+    }
+
+    .btn-clear {
+      color: var(--muted);
+      border-color: var(--border2);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .status-dot.error {
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red);
+    }
+
+    .status-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border2);
+      margin: 0 4px;
+    }
+
+    .mode-toggle {
+      display: flex;
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .mode-btn {
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg);
+      color: var(--muted);
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .mode-btn:not(:last-child) {
+      border-right: 1px solid var(--border2);
+    }
+
+    .mode-btn:hover {
+      color: var(--text);
+    }
+
+    .mode-btn.active {
+      background: var(--green-d);
+      color: #fff;
+    }
+
+    /* ── Output ── */
+    #output-wrapper {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #output {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .line {
+      display: flex;
+      gap: 8px;
+      min-height: 1.65em;
+    }
+
+    .ts {
+      color: var(--border2);
+      user-select: none;
+      font-size: 11px;
+      line-height: 1.65;
+      padding-top: 1px;
+      white-space: nowrap;
+    }
+
+    .rx {
+      color: var(--text);
+    }
+
+    .tx {
+      color: var(--blue);
+    }
+
+    .tx::before {
+      content: '▶ ';
+      opacity: 0.5;
+    }
+
+    .info {
+      color: var(--amber);
+      font-style: italic;
+    }
+
+    .err {
+      color: var(--red);
+    }
+
+    #output::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #output::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #output::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px;
+    }
+
+    #autoscroll-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 18px;
+      font-size: 11px;
+      padding: 3px 8px;
+      opacity: 0.6;
+    }
+
+    #autoscroll-btn.active {
+      opacity: 1;
+      color: var(--green);
+      border-color: var(--green);
+    }
+
+    /* ── Input row ── */
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .prompt {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--blue);
+      padding: 0 10px 0 16px;
+      user-select: none;
+    }
+
+    #input {
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 13px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      padding: 10px 0;
+      caret-color: var(--green);
+    }
+
+    #input::placeholder {
+      color: var(--border2);
+    }
+
+    #input:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .send-btn {
+      padding: 10px 16px;
+      border: none;
+      border-left: 1px solid var(--border);
+      background: transparent;
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      background: #1c2233;
+      color: #fff;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* ── Unsupported ── */
+    #unsupported {
+      display: none;
+      background: #3a1c0a;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      padding: 8px 16px;
+      font-size: 13px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Counters ── */
+    .counters {
+      display: flex;
+      gap: 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .counter-rx {
+      color: var(--green);
+    }
+
+    .counter-tx {
+      color: var(--blue);
+    }
+
+    .counter-pkt {
+      color: var(--purple);
+    }
+
+    @media (max-width: 600px) {
+      .ctrl-group label {
+        display: none;
+      }
+
+      .counters {
+        display: none;
+      }
+
+      .ts {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="unsupported">
+    ⚠ Web Serial is not supported in this browser. Try Chrome or Edge (version 89+).
+  </div>
+
+  <header>
+    <div class="logo">&gt;_ <span>serial</span>term<sup>v2</sup></div>
+    <div class="spacer"></div>
+    <div class="counters">
+      <span class="counter-rx">RX: <span id="rx-count">0</span> B</span>
+      <span class="counter-tx">TX: <span id="tx-count">0</span> B</span>
+      <span class="counter-pkt">PKT: <span id="pkt-count">0</span></span>
+    </div>
+    <div class="status-dot" id="status-dot"></div>
+    <span class="status-label" id="status-label">disconnected</span>
+  </header>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Baud</label>
+      <select id="baud">
+        <option>300</option>
+        <option>1200</option>
+        <option>2400</option>
+        <option>4800</option>
+        <option>9600</option>
+        <option selected>115200</option>
+        <option>230400</option>
+        <option>460800</option>
+        <option>921600</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Data bits</label>
+      <select id="data-bits">
+        <option>7</option>
+        <option selected>8</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Stop bits</label>
+      <select id="stop-bits">
+        <option selected>1</option>
+        <option>2</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Parity</label>
+      <select id="parity">
+        <option value="none" selected>none</option>
+        <option value="even">even</option>
+        <option value="odd">odd</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Flow</label>
+      <select id="flow">
+        <option value="none" selected>none</option>
+        <option value="hardware">RTS/CTS</option>
+      </select>
+    </div>
+
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-group">
+      <label>Mode</label>
+      <div class="mode-toggle" id="mode-toggle">
+        <button class="mode-btn" data-mode="decode" type="button">Decode</button>
+        <button class="mode-btn active" data-mode="raw" type="button">Raw</button>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn btn-clear" id="clear-btn">Clear</button>
+    <button class="btn btn-connect" id="connect-btn">⚡ Connect</button>
+  </div>
+
+  <div id="output-wrapper">
+    <div id="output"></div>
+    <button class="btn" id="autoscroll-btn">↓ Auto-scroll</button>
+  </div>
+
+  <div class="input-row">
+    <span class="prompt">&gt;</span>
+    <input id="input" type="text" placeholder="Type and press Enter to send…" disabled autocomplete="off"
+      spellcheck="false" />
+    <button class="send-btn" id="send-btn" disabled>Send</button>
+  </div>
+
+  <script>
+    // ════════════════════════════════════════════════════════════════════════════
+    //  IMPLEMENT YOUR DECODER HERE
+    //
+    //  Called once per complete packet (exactly `packetSize` bytes).
+    //  Return a string to display it in the terminal, or null/undefined to
+    //  suppress output for that packet.
+    //
+    //  @param {Uint8Array} bytes  — raw bytes of the packet
+    //  @param {number}     index  — packet counter (0-based)
+    //  @returns {string | null | undefined}
+    // ════════════════════════════════════════════════════════════════════════════
+    function decodePacket(bytes, index) {
+      let read = 0;
+      const view = new DataView(bytes.buffer);
+      const headerVersion = view.getUint8(read); read += 1;
+      const fromNode = view.getUint8(read); read += 1;
+      const toNode = view.getUint8(read); read += 1;
+      const sequenceNumber = view.getUint16(read, true); read += 2;
+      const commandId = view.getUint8(read); read += 1;
+      const payloadLength = view.getUint8(read); read += 1;
+      const payload = bytes.slice(read, read + 16); // Adjust size as needed
+      read += 16;
+      const checksum = view.getUint8(read); read += 1;
+      const snr = view.getFloat32(read, true); read += 4;
+      const frequencyError = view.getInt32(read, true); read += 4;
+      const rssi = view.getInt16(read, true); read += 2;
+      
+      const packet = {
+        meta: {
+          rssi,
+          snr,
+          frequencyError,
+        },
+        header: {
+          version: headerVersion,
+          from: fromNode,
+          to: toNode,
+          sequenceNumber
+        },
+        command: {
+          id: commandId,
+          payloadLength: payloadLength,
+          payload: Array.from(payload)
+        },
+        checksum,
+      };
+      return JSON.stringify(packet);
+    }
+    const PACKET_SIZE = 34;
+    // ════════════════════════════════════════════════════════════════════════════
+
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let port = null;
+    let reader = null;
+    let readLoopActive = false;
+    let writer = null;
+    let rxBytes = 0;
+    let txBytes = 0;
+    let packetCount = 0;
+    let autoScroll = true;
+    const cmdHistory = [];
+    let historyIdx = -1;
+    let decodeMode = false; // true = decode packets via decodePacket(), false = raw text passthrough
+
+    // Raw byte accumulation buffer (decode mode)
+    let rxBuffer = new Uint8Array(0);
+
+    // Raw text mode buffer/decoder (raw mode) — TextDecoder({stream:true}) so
+    // multi-byte UTF-8 chars split across chunks decode correctly.
+    let rawLineBuffer = '';
+    let rawDecoder = new TextDecoder();
+
+    // ── Elements ──────────────────────────────────────────────────────────────
+    const output = document.getElementById('output');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const connectBtn = document.getElementById('connect-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const statusDot = document.getElementById('status-dot');
+    const statusLabel = document.getElementById('status-label');
+    const rxCount = document.getElementById('rx-count');
+    const txCount = document.getElementById('tx-count');
+    const pktCount = document.getElementById('pkt-count');
+    const autoscrollBtn = document.getElementById('autoscroll-btn');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+
+    // ── Unsupported check ──────────────────────────────────────────────────────
+    if (!('serial' in navigator)) {
+      document.getElementById('unsupported').style.display = 'block';
+      connectBtn.disabled = true;
+    }
+
+    // ── Auto-scroll ───────────────────────────────────────────────────────────
+    autoscrollBtn.classList.add('active');
+    autoscrollBtn.addEventListener('click', () => {
+      autoScroll = !autoScroll;
+      autoscrollBtn.classList.toggle('active', autoScroll);
+      if (autoScroll) scrollToBottom();
+    });
+
+    let programmingScroll = false;
+    output.addEventListener('scroll', () => {
+      if (programmingScroll) return;
+      const atBottom = output.scrollHeight - output.scrollTop - output.clientHeight < 40;
+      if (!atBottom && autoScroll) {
+        autoScroll = false;
+        autoscrollBtn.classList.remove('active');
+      }
+    });
+
+    // ── Decode / Raw mode toggle ─────────────────────────────────────────────
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wantsDecode = btn.dataset.mode === 'decode';
+        if (wantsDecode === decodeMode) return;
+        decodeMode = wantsDecode;
+        modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === (decodeMode ? 'decode' : 'raw')));
+        // Flush/reset any in-flight partial data so leftover bytes from the
+        // previous mode aren't misinterpreted in the new one.
+        if (rxBuffer.length > 0) {
+          logInfo(`Mode switch — ${rxBuffer.length} byte(s) in partial packet discarded`);
+        }
+        rxBuffer = new Uint8Array(0);
+        if (rawLineBuffer.length > 0) logRx(rawLineBuffer);
+        rawLineBuffer = '';
+        rawDecoder = new TextDecoder();
+        logInfo(`Switched to ${decodeMode ? 'decode' : 'raw'} mode`);
+      });
+    });
+
+    function scrollToBottom() {
+      programmingScroll = true;
+      output.scrollTop = output.scrollHeight;
+      requestAnimationFrame(() => { programmingScroll = false; });
+    }
+
+    // ── Logging ───────────────────────────────────────────────────────────────
+    function now() {
+      const d = new Date();
+      return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+    }
+
+    function appendLine(text, cls) {
+      const line = document.createElement('div');
+      line.className = 'line';
+      const ts = document.createElement('span');
+      ts.className = 'ts';
+      ts.textContent = now();
+      const content = document.createElement('span');
+      content.className = cls;
+      content.textContent = text;
+      line.appendChild(ts);
+      line.appendChild(content);
+      output.appendChild(line);
+      if (autoScroll) scrollToBottom();
+    }
+
+    function logInfo(msg) { appendLine(msg, 'info'); }
+    function logRx(text) { appendLine(text, 'rx'); }
+    function logTx(text) { appendLine(text, 'tx'); }
+    function logErr(msg) { appendLine(msg, 'err'); }
+
+    // ── Status ────────────────────────────────────────────────────────────────
+    function setStatus(state) {
+      statusDot.className = 'status-dot ' + (state === 'connected' ? 'connected' : state === 'error' ? 'error' : '');
+      statusLabel.textContent = state;
+    }
+
+    function setConnected(yes) {
+      input.disabled = !yes;
+      sendBtn.disabled = !yes;
+      connectBtn.textContent = yes ? '✕ Disconnect' : '⚡ Connect';
+      connectBtn.className = 'btn ' + (yes ? 'btn-disconnect' : 'btn-connect');
+      if (yes) { input.focus(); setStatus('connected'); }
+      else setStatus('disconnected');
+      ['baud', 'data-bits', 'stop-bits', 'parity', 'flow'].forEach(id => {
+        document.getElementById(id).disabled = yes;
+      });
+    }
+
+    // ── Packet accumulator (decode mode) ──────────────────────────────────────
+    // Appends incoming chunk to rxBuffer, then slices off complete packets and
+    // dispatches each one to decodePacket().
+    function handleChunk(chunk) {
+      if (!decodeMode) { handleChunkRaw(chunk); return; }
+
+      // Grow buffer
+      const merged = new Uint8Array(rxBuffer.length + chunk.length);
+      merged.set(rxBuffer, 0);
+      merged.set(chunk, rxBuffer.length);
+      rxBuffer = merged;
+
+      const packetSize = PACKET_SIZE;
+
+      while (rxBuffer.length >= packetSize) {
+        const packet = rxBuffer.slice(0, packetSize);
+        rxBuffer = rxBuffer.slice(packetSize);
+
+        let result;
+        try {
+          result = decodePacket(packet, packetCount);
+        } catch (e) {
+          logErr(`decodePacket error (packet #${packetCount}): ${e.message}`);
+          packetCount++;
+          pktCount.textContent = packetCount;
+          continue;
+        }
+
+        packetCount++;
+        pktCount.textContent = packetCount;
+
+        if (result != null) logRx(result);
+      }
+    }
+
+    // ── Raw text passthrough (raw mode) ───────────────────────────────────────
+    // Decodes incoming bytes as UTF-8 text and prints line-by-line, splitting
+    // on '\n' and trimming a trailing '\r'. Partial lines are buffered until
+    // the rest of the line arrives.
+    function handleChunkRaw(chunk) {
+      rawLineBuffer += rawDecoder.decode(chunk, { stream: true });
+      let idx;
+      while ((idx = rawLineBuffer.indexOf('\n')) >= 0) {
+        const line = rawLineBuffer.slice(0, idx).replace(/\r$/, '');
+        logRx(line);
+        rawLineBuffer = rawLineBuffer.slice(idx + 1);
+      }
+    }
+
+    // ── Connect ───────────────────────────────────────────────────────────────
+    connectBtn.addEventListener('click', async () => {
+      if (port) { await disconnect(); return; }
+
+      try {
+        port = await navigator.serial.requestPort();
+        const baudRate = parseInt(document.getElementById('baud').value);
+        const dataBits = parseInt(document.getElementById('data-bits').value);
+        const stopBits = parseInt(document.getElementById('stop-bits').value);
+        const parity = document.getElementById('parity').value;
+        const flowControl = document.getElementById('flow').value;
+        const packetSize = PACKET_SIZE;
+
+        await port.open({ baudRate, dataBits, stopBits, parity, flowControl });
+        logInfo(`Connected — ${baudRate} baud, ${dataBits}${parity[0].toUpperCase()}${stopBits} — packet size: ${packetSize} B`);
+        setConnected(true);
+        writer = port.writable.getWriter();
+        startReadLoop();
+      } catch (e) {
+        if (e.name !== 'NotFoundError') {
+          logErr(`Connection failed [${e.name}]: ${e.message}`);
+          setStatus('error');
+        }
+        port = null;
+      }
+    });
+
+    // ── Disconnect ────────────────────────────────────────────────────────────
+    async function disconnect() {
+      readLoopActive = false;
+      try { reader && await reader.cancel(); } catch { }
+      try { writer && await writer.close(); } catch { }
+      writer = null; reader = null;
+      try { await port.close(); } catch { }
+      port = null;
+      if (rxBuffer.length > 0) {
+        logInfo(`Disconnected — ${rxBuffer.length} byte(s) in partial packet discarded`);
+        rxBuffer = new Uint8Array(0);
+      } else if (rawLineBuffer.length > 0) {
+        logRx(rawLineBuffer);
+        rawLineBuffer = '';
+        rawDecoder = new TextDecoder();
+        logInfo('Disconnected');
+      } else {
+        logInfo('Disconnected');
+      }
+      setConnected(false);
+    }
+
+    // ── Read loop ─────────────────────────────────────────────────────────────
+    async function startReadLoop() {
+      readLoopActive = true;
+
+      try {
+        while (port && port.readable && readLoopActive) {
+          reader = port.readable.getReader();
+          try {
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              if (!value || value.byteLength === 0) continue;
+
+              rxBytes += value.byteLength;
+              rxCount.textContent = formatBytes(rxBytes);
+
+              handleChunk(value); // value is already a Uint8Array
+            }
+          } catch (e) {
+            if (readLoopActive) logErr('Read error: ' + e.message);
+          } finally {
+            reader.releaseLock();
+            reader = null;
+          }
+        }
+      } catch (e) {
+        if (readLoopActive) { logErr('Stream error: ' + e.message); setStatus('error'); }
+      }
+
+      if (readLoopActive) {
+        readLoopActive = false;
+        writer = null; port = null;
+        setConnected(false);
+        logInfo('Port closed unexpectedly');
+        setStatus('error');
+      }
+    }
+
+    // ── Send ──────────────────────────────────────────────────────────────────
+    async function send() {
+      const text = input.value;
+      if (!text || !writer) return;
+
+      const encoded = new TextEncoder().encode(text);
+      try {
+        await writer.write(encoded);
+        txBytes += encoded.byteLength;
+        txCount.textContent = formatBytes(txBytes);
+        logTx(text);
+        cmdHistory.unshift(text);
+        if (cmdHistory.length > 100) cmdHistory.pop();
+        historyIdx = -1;
+        input.value = '';
+      } catch (e) {
+        logErr('Send error: ' + e.message);
+      }
+    }
+
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); send(); return; }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (cmdHistory.length) { historyIdx = Math.min(historyIdx + 1, cmdHistory.length - 1); input.value = cmdHistory[historyIdx]; }
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        historyIdx = Math.max(historyIdx - 1, -1);
+        input.value = historyIdx === -1 ? '' : cmdHistory[historyIdx];
+      }
+    });
+
+    // ── Clear ─────────────────────────────────────────────────────────────────
+    clearBtn.addEventListener('click', () => {
+      output.innerHTML = '';
+      rxBytes = 0; txBytes = 0; packetCount = 0;
+      rxBuffer = new Uint8Array(0);
+      rawLineBuffer = '';
+      rawDecoder = new TextDecoder();
+      rxCount.textContent = '0'; txCount.textContent = '0'; pktCount.textContent = '0';
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function formatBytes(n) {
+      if (n < 1024) return n + ' B';
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+      return (n / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    navigator.serial?.addEventListener('disconnect', async (e) => {
+      if (port && e.target === port) {
+        readLoopActive = false;
+        writer = null; port = null;
+        setConnected(false);
+        logInfo('Device disconnected');
+        setStatus('error');
+      }
+    });
+
+    logInfo('Web Serial Terminal v2 ready — set packet size, then click Connect');
+    logInfo('Implement decodePacket(bytes, index) at the top of the <script> block');
+  </script>
+</body>
+
+</html>
