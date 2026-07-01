@@ -1,7 +1,7 @@
 #ifndef AGRI_LORA_REPORTED_H
 #define AGRI_LORA_REPORTED_H
 
-#include "../common/packet.h"
+#include <packet.h>
 
 typedef struct __attribute__((packed)) {
     Packet packet;
