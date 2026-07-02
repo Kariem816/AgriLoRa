@@ -120,7 +120,7 @@ static void uart_queuer_task(void *arg) {
       continue;
     }
 
-    if (xQueueSend(tx_queue, &pkt, pdMS_TO_TICKS(portMAX_DELAY))) {
+    if (!xQueueSend(tx_queue, &pkt, portMAX_DELAY)) {
       log_warn("uart_queuer: tx_queue full, dropping packet");
     }
   }
@@ -131,7 +131,7 @@ static void tx_task(void *ctx) {
   Packet pkt;
 
   while (1) {
-    if (xQueueReceive(tx_queue, &pkt, portMAX_DELAY) != pdTRUE) {
+    if (!xQueueReceive(tx_queue, &pkt, portMAX_DELAY)) {
       continue;
     }
 
@@ -166,7 +166,7 @@ static void tx_task(void *ctx) {
 static void rx_task(void *arg) {
   Frame frame;
   while (1) {
-    if (xQueueReceive(frame_queue, &frame, portMAX_DELAY) != pdTRUE) {
+    if (!xQueueReceive(frame_queue, &frame, portMAX_DELAY)) {
       continue;
     }
 
@@ -306,7 +306,7 @@ void app_main(void) {
 
   xTaskCreate(lora_event_processor_task, "lora_evt", 4096, NULL, 10,
               &lora_event_processor_task_handle);
-  xTaskCreate(tx_task, "lora_tx", 4096, NULL, 5, &tx_task_handle);
+  xTaskCreate(tx_task, "lora_tx", 4096, &device, 5, &tx_task_handle);
   xTaskCreate(rx_task, "lora_rx", 4096, NULL, 5, NULL);
   xTaskCreate(uart_queuer_task, "uart_q", 4096, NULL, 5, NULL);
 
