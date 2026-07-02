@@ -303,11 +303,14 @@ void app_main(void) {
       sx127x_set_opmod(SX127X_MODE_STANDBY, SX127X_MODULATION_LORA, &device));
   ESP_ERROR_CHECK(sx127x_set_frequency(LORA_FREQUENCY, &device));
   ESP_ERROR_CHECK(sx127x_lora_reset_fifo(&device));
+  ESP_ERROR_CHECK(sx127x_rx_set_lna_boost_hf(true, &device));
+  ESP_ERROR_CHECK(sx127x_rx_set_lna_gain(SX127X_LNA_GAIN_G4, &device));
   ESP_ERROR_CHECK(sx127x_lora_set_bandwidth(LORA_BANDWIDTH, &device));
   ESP_ERROR_CHECK(sx127x_lora_set_implicit_header(NULL, &device));
   ESP_ERROR_CHECK(sx127x_lora_set_spreading_factor(SX127X_SF_9, &device));
   ESP_ERROR_CHECK(sx127x_lora_set_syncword(18, &device));
   ESP_ERROR_CHECK(sx127x_set_preamble_length(8, &device));
+  ESP_ERROR_CHECK(sx127x_tx_set_pa_config(SX127X_PA_PIN_BOOST, 17, &device));
   sx127x_tx_header_t header = {.enable_crc = true,
                                .coding_rate = SX127X_CR_4_5};
   ESP_ERROR_CHECK(sx127x_lora_tx_set_explicit_header(&header, &device));
