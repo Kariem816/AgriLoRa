@@ -5,6 +5,7 @@
 #include <stdarg.h>
 
 typedef enum {
+  FRAME_DEBUG,
   FRAME_INFO,
   FRAME_WARN,
   FRAME_ERROR,

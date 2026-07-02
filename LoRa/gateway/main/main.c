@@ -40,6 +40,16 @@ static TaskHandle_t lora_event_processor_task_handle = NULL;
 static TaskHandle_t tx_task_handle = NULL;
 
 static sx127x device;
+static SemaphoreHandle_t lora_mutex = NULL;
+
+bool log_dbg(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  Frame frame = frame_vlog(FRAME_DEBUG, fmt, args);
+  va_end(args);
+
+  return xQueueSend(frame_queue, &frame, pdMS_TO_TICKS(100));
+}
 
 bool log_info(const char *fmt, ...) {
   va_list args;
@@ -87,7 +97,9 @@ static void IRAM_ATTR gpio_isr_handler(void *arg) {
 static void lora_event_processor_task(void *arg) {
   while (1) {
     if (ulTaskNotifyTakeIndexed(eventArrayIndex, pdTRUE, portMAX_DELAY) > 0) {
+      xSemaphoreTake(lora_mutex, portMAX_DELAY);
       sx127x_handle_interrupt(&device);
+      xSemaphoreGive(lora_mutex);
     }
   }
 }
@@ -104,7 +116,7 @@ static void uart_queuer_task(void *arg) {
     }
 
     if (buffer_size < sizeof(pkt)) {
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
 
@@ -115,8 +127,9 @@ static void uart_queuer_task(void *arg) {
     }
 
     if (n != sizeof(pkt)) {
-      log_warn("uart_queuer: invalid packet. read %d bytes. expected %zu", n,
-               sizeof(pkt));
+      log_err("uart_queuer: Unreachable. received a packet of %d bytes, "
+              "expected %zu",
+              n, sizeof(pkt));
       continue;
     }
 
@@ -137,14 +150,17 @@ static void tx_task(void *ctx) {
 
     packet_calculate_checksum(&pkt);
 
+    xSemaphoreTake(lora_mutex, portMAX_DELAY);
     esp_err_t err = sx127x_lora_tx_set_for_transmission((const uint8_t *)&pkt,
                                                         sizeof(pkt), dev);
     if (err != SX127X_OK) {
+      xSemaphoreGive(lora_mutex);
       log_err("tx_task: set_for_transmission failed: %d", err);
       continue;
     }
 
     err = sx127x_set_opmod(SX127X_MODE_TX, SX127X_MODULATION_LORA, dev);
+    xSemaphoreGive(lora_mutex);
     if (err != SX127X_OK) {
       log_err("tx_task: set TX mode failed: %d", err);
       continue;
@@ -158,8 +174,9 @@ static void tx_task(void *ctx) {
       log_info("tx_task: tx done");
     }
 
-    // Return to RX mode regardless
+    xSemaphoreTake(lora_mutex, portMAX_DELAY);
     sx127x_set_opmod(SX127X_MODE_RX_CONT, SX127X_MODULATION_LORA, dev);
+    xSemaphoreGive(lora_mutex);
   }
 }
 
@@ -240,9 +257,10 @@ static void lora_rx_callback(void *ctx, uint8_t *data, uint16_t data_length) {
 }
 
 void app_main(void) {
+  lora_mutex = xSemaphoreCreateMutex();
   frame_queue = xQueueCreate(FRAME_QUEUE_DEPTH, sizeof(Frame));
   tx_queue = xQueueCreate(TX_QUEUE_DEPTH, sizeof(Packet));
-  configASSERT(frame_queue && tx_queue);
+  configASSERT(lora_mutex && frame_queue && tx_queue);
 
   uart_config_t uart_cfg = {
       .baud_rate = UART_BAUD,
@@ -276,6 +294,10 @@ void app_main(void) {
   spi_device_handle_t spi_device;
   ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &spi_dev_cfg, &spi_device));
 
+  gpio_set_level(PIN_LORA_RST, 0);
+  vTaskDelay(pdMS_TO_TICKS(10));
+  gpio_set_level(PIN_LORA_RST, 1);
+
   ESP_ERROR_CHECK(sx127x_create(spi_device, &device));
   ESP_ERROR_CHECK(
       sx127x_set_opmod(SX127X_MODE_STANDBY, SX127X_MODULATION_LORA, &device));
@@ -302,16 +324,20 @@ void app_main(void) {
       .intr_type = GPIO_INTR_POSEDGE,
   };
   ESP_ERROR_CHECK(gpio_config(&io_conf));
-  ESP_ERROR_CHECK(gpio_isr_handler_add(PIN_LORA_DIO, gpio_isr_handler, NULL));
 
   xTaskCreate(lora_event_processor_task, "lora_evt", 4096, NULL, 10,
               &lora_event_processor_task_handle);
+  ESP_ERROR_CHECK(gpio_isr_handler_add(PIN_LORA_DIO, gpio_isr_handler, NULL));
+
+  xSemaphoreTake(lora_mutex, portMAX_DELAY);
+  ESP_ERROR_CHECK(sx127x_write_register(0x12, 0xFF, &device.spi_device));
+  ESP_ERROR_CHECK(
+      sx127x_set_opmod(SX127X_MODE_RX_CONT, SX127X_MODULATION_LORA, &device));
+  xSemaphoreGive(lora_mutex);
+
   xTaskCreate(tx_task, "lora_tx", 4096, &device, 5, &tx_task_handle);
   xTaskCreate(rx_task, "lora_rx", 4096, NULL, 5, NULL);
   xTaskCreate(uart_queuer_task, "uart_q", 4096, NULL, 5, NULL);
-
-  ESP_ERROR_CHECK(
-      sx127x_set_opmod(SX127X_MODE_RX_CONT, SX127X_MODULATION_LORA, &device));
 
   log_info("Gateway started");
 }

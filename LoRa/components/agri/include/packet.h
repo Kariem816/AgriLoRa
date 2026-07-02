@@ -22,6 +22,13 @@ typedef struct __attribute__((packed)) {
   uint8_t checksum;
 } Packet;
 
+typedef struct __attribute__((packed)) {
+  Packet packet;
+  float snr;
+  int32_t frequency_error;
+  int16_t rssi;
+} ReportPacket;
+
 void packet_calculate_checksum(Packet *packet);
 bool packet_verify_checksum(Packet *packet);
 
